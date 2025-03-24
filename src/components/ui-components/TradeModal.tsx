@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { cn } from "@/lib/utils";
-import { Trade } from "./DataTable";
+import { Trade, OptionType, calculateROI } from "./DataTable";
 
 interface TradeModalProps {
   trade?: Trade;
@@ -31,14 +31,34 @@ export function TradeModal({
     totalPremium: 0,
     profitLoss: 0,
     status: "Open",
+    totalInvested: 0,
+    roi: 0
   });
+
+  // Auto-calculate total invested and ROI based on other fields
+  useEffect(() => {
+    // This is a simplified calculation - in reality, different option strategies 
+    // would have different investment calculations
+    const totalInvested = formData.entryPrice * formData.quantity;
+    const roi = calculateROI(formData.profitLoss, totalInvested);
+    
+    setFormData(prev => ({
+      ...prev,
+      totalInvested,
+      roi
+    }));
+  }, [formData.entryPrice, formData.quantity, formData.profitLoss]);
 
   useEffect(() => {
     if (trade) {
+      // If editing an existing trade, use its values
       setFormData({
         ...trade,
         entryDate: new Date(trade.entryDate).toISOString().split('T')[0],
-        exitDate: trade.exitDate ? new Date(trade.exitDate).toISOString().split('T')[0] : undefined
+        exitDate: trade.exitDate ? new Date(trade.exitDate).toISOString().split('T')[0] : undefined,
+        // Ensure the financial calculations are updated
+        totalInvested: trade.totalInvested || trade.entryPrice * trade.quantity,
+        roi: trade.roi || calculateROI(trade.profitLoss, trade.totalInvested || trade.entryPrice * trade.quantity)
       });
     } else {
       // Generate a random trade ID for new trades
@@ -53,6 +73,8 @@ export function TradeModal({
         totalPremium: 0,
         profitLoss: 0,
         status: "Open",
+        totalInvested: 0,
+        roi: 0
       });
     }
   }, [trade, isOpen]);
@@ -76,7 +98,25 @@ export function TradeModal({
     onSave(formData);
   };
 
+  const optionTypes: OptionType[] = [
+    "Call", 
+    "Put", 
+    "Bull Call Spread", 
+    "Bear Put Spread", 
+    "Covered Call", 
+    "Iron Condor", 
+    "Butterfly"
+  ];
+
   if (!isOpen) return null;
+
+  // Helper to format currency
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
@@ -155,8 +195,9 @@ export function TradeModal({
                   !isEditMode && "opacity-70"
                 )}
               >
-                <option value="Call">Call</option>
-                <option value="Put">Put</option>
+                {optionTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
               </select>
             </div>
             
@@ -310,6 +351,43 @@ export function TradeModal({
                 )}
               />
             </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="totalInvested">
+                Total Invested
+              </label>
+              <input
+                id="totalInvested"
+                name="totalInvested"
+                type="number"
+                step="0.01"
+                value={formData.totalInvested}
+                onChange={handleChange}
+                disabled={!isEditMode}
+                className={cn(
+                  "w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  !isEditMode && "opacity-70"
+                )}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="roi">
+                ROI (%)
+              </label>
+              <div className="flex items-center">
+                <input
+                  id="roi"
+                  name="roi"
+                  type="number"
+                  step="0.01"
+                  value={formData.roi?.toFixed(2) || "0.00"}
+                  disabled={true}
+                  className="w-full h-10 rounded-md border border-input bg-muted px-3 py-2 text-sm opacity-70"
+                />
+                <span className="ml-2 text-sm text-muted-foreground">Auto-calculated</span>
+              </div>
+            </div>
           </div>
           
           <div className="space-y-2">
@@ -329,6 +407,43 @@ export function TradeModal({
               )}
             />
           </div>
+          
+          {/* Financial Summary Section */}
+          {!isEditMode && (
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-lg font-medium mb-3">Financial Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-3 bg-muted/30 rounded-md">
+                  <div className="text-sm text-muted-foreground">Total Invested</div>
+                  <div className="text-lg font-medium">{formatCurrency(formData.totalInvested || 0)}</div>
+                </div>
+                <div className={cn(
+                  "p-3 rounded-md",
+                  formData.profitLoss > 0 ? "bg-success/20" : formData.profitLoss < 0 ? "bg-destructive/20" : "bg-muted/30"
+                )}>
+                  <div className="text-sm text-muted-foreground">Profit/Loss</div>
+                  <div className={cn(
+                    "text-lg font-medium",
+                    formData.profitLoss > 0 ? "text-success" : formData.profitLoss < 0 ? "text-destructive" : ""
+                  )}>
+                    {formatCurrency(formData.profitLoss)}
+                  </div>
+                </div>
+                <div className={cn(
+                  "p-3 rounded-md",
+                  (formData.roi || 0) > 0 ? "bg-success/20" : (formData.roi || 0) < 0 ? "bg-destructive/20" : "bg-muted/30"
+                )}>
+                  <div className="text-sm text-muted-foreground">ROI</div>
+                  <div className={cn(
+                    "text-lg font-medium",
+                    (formData.roi || 0) > 0 ? "text-success" : (formData.roi || 0) < 0 ? "text-destructive" : ""
+                  )}>
+                    {formData.roi?.toFixed(2) || "0.00"}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="flex justify-end space-x-4 pt-4">
             <button

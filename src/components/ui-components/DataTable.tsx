@@ -4,11 +4,13 @@ import { Edit, Trash, Search } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { cn } from "@/lib/utils";
 
+export type OptionType = "Call" | "Put" | "Bull Call Spread" | "Bear Put Spread" | "Covered Call" | "Iron Condor" | "Butterfly";
+
 export type Trade = {
   id: string;
   tradeId: string;
   underlyingSymbol: string;
-  optionType: "Call" | "Put";
+  optionType: OptionType;
   entryDate: string;
   entryPrice: number;
   exitDate?: string;
@@ -18,6 +20,14 @@ export type Trade = {
   profitLoss: number;
   status: "Open" | "Closed" | "Pending";
   notes?: string;
+  totalInvested?: number; // Added for tracking total money invested
+  roi?: number; // Return on investment percentage
+};
+
+// Helper function to calculate ROI
+export const calculateROI = (profitLoss: number, totalInvested: number): number => {
+  if (!totalInvested || totalInvested === 0) return 0;
+  return (profitLoss / totalInvested) * 100;
 };
 
 interface DataTableProps {
@@ -35,6 +45,14 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Total invested across all open trades
+  const totalInvestedAcrossOpenTrades = data
+    .filter(trade => trade.status === "Open")
+    .reduce((sum, trade) => sum + (trade.totalInvested || 0), 0);
+
+  // Total profit/loss across all trades
+  const totalProfitLoss = data.reduce((sum, trade) => sum + trade.profitLoss, 0);
 
   useEffect(() => {
     if (!data) return;
@@ -105,7 +123,7 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex items-center mb-4">
+      <div className="flex flex-col gap-4 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -115,6 +133,26 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
+        </div>
+        
+        {/* Financial Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-muted/30 p-4 rounded-md">
+            <h3 className="text-sm font-medium mb-2">Total Currently Invested</h3>
+            <p className="text-xl font-semibold">{formatCurrency(totalInvestedAcrossOpenTrades)}</p>
+          </div>
+          <div className={cn(
+            "p-4 rounded-md",
+            totalProfitLoss > 0 ? "bg-success/20" : totalProfitLoss < 0 ? "bg-destructive/20" : "bg-muted/30"
+          )}>
+            <h3 className="text-sm font-medium mb-2">Total Profit/Loss</h3>
+            <p className={cn(
+              "text-xl font-semibold",
+              totalProfitLoss > 0 ? "text-success" : totalProfitLoss < 0 ? "text-destructive" : ""
+            )}>
+              {formatCurrency(totalProfitLoss)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -148,9 +186,21 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
               </th>
               <th 
                 className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
+                onClick={() => handleSort('totalInvested')}
+              >
+                Invested {getSortIcon('totalInvested')}
+              </th>
+              <th 
+                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
                 onClick={() => handleSort('profitLoss')}
               >
                 P/L {getSortIcon('profitLoss')}
+              </th>
+              <th 
+                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
+                onClick={() => handleSort('roi')}
+              >
+                ROI % {getSortIcon('roi')}
               </th>
               <th 
                 className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
@@ -186,11 +236,20 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
                   <td className="p-4 align-middle">
                     {new Date(trade.entryDate).toLocaleDateString()}
                   </td>
+                  <td className="p-4 align-middle">
+                    {formatCurrency(trade.totalInvested || 0)}
+                  </td>
                   <td className={cn(
                     "p-4 align-middle font-medium",
                     trade.profitLoss > 0 ? "text-success" : trade.profitLoss < 0 ? "text-destructive" : ""
                   )}>
                     {formatCurrency(trade.profitLoss)}
+                  </td>
+                  <td className={cn(
+                    "p-4 align-middle font-medium",
+                    (trade.roi || 0) > 0 ? "text-success" : (trade.roi || 0) < 0 ? "text-destructive" : ""
+                  )}>
+                    {trade.roi?.toFixed(2) || "0.00"}%
                   </td>
                   <td className="p-4 align-middle">
                     <StatusBadge status={trade.status} />
@@ -221,7 +280,7 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-muted-foreground">
+                <td colSpan={9} className="p-4 text-center text-muted-foreground">
                   No records found
                 </td>
               </tr>
