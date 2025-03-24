@@ -54,22 +54,34 @@ interface State {
   toasts: ToasterToast[]
 }
 
+// Create a React context for the dispatch function
+const ToastDispatchContext = React.createContext<React.Dispatch<Action> | undefined>(undefined);
+
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
-const addToRemoveQueue = (toastId: string) => {
-  if (toastTimeouts.has(toastId)) {
-    return
+// Move addToRemoveQueue into a custom hook to access dispatch
+const useToastRemoveQueue = () => {
+  const dispatch = React.useContext(ToastDispatchContext);
+  
+  if (!dispatch) {
+    throw new Error("useToastRemoveQueue must be used within a ToastProvider");
   }
+  
+  return React.useCallback((toastId: string) => {
+    if (toastTimeouts.has(toastId)) {
+      return
+    }
 
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
+    const timeout = setTimeout(() => {
+      toastTimeouts.delete(toastId)
+      dispatch({
+        type: "REMOVE_TOAST",
+        toastId: toastId,
+      })
+    }, TOAST_REMOVE_DELAY)
 
-  toastTimeouts.set(toastId, timeout)
+    toastTimeouts.set(toastId, timeout)
+  }, [dispatch]);
 }
 
 export const reducer = (state: State, action: Action): State => {
@@ -90,16 +102,6 @@ export const reducer = (state: State, action: Action): State => {
 
     case "DISMISS_TOAST": {
       const { toastId } = action
-
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
 
       return {
         ...state,
@@ -134,11 +136,15 @@ const ToastContext = React.createContext<{
   dismiss: (toastId?: string) => void
 } | undefined>(undefined);
 
+type Toast = Omit<ToasterToast, "id">
+
 // Create a provider component
 export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = React.useReducer(reducer, {
     toasts: [],
   });
+
+  const addToRemoveQueue = useToastRemoveQueue();
 
   const listeners: Array<(state: State) => void> = React.useRef([]).current;
 
@@ -147,6 +153,15 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
       listener(state);
     });
   }, [state, listeners]);
+
+  // Handle side effects for dismiss toast action
+  React.useEffect(() => {
+    state.toasts.forEach((toast) => {
+      if (toast.open === false) {
+        addToRemoveQueue(toast.id);
+      }
+    });
+  }, [state.toasts, addToRemoveQueue]);
 
   const toast = React.useCallback((props: Toast) => {
     const id = genId();
@@ -183,13 +198,13 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <ToastContext.Provider value={{ state, toast, dismiss }}>
-      {children}
-    </ToastContext.Provider>
+    <ToastDispatchContext.Provider value={dispatch}>
+      <ToastContext.Provider value={{ state, toast, dismiss }}>
+        {children}
+      </ToastContext.Provider>
+    </ToastDispatchContext.Provider>
   );
 };
-
-type Toast = Omit<ToasterToast, "id">
 
 function useToast() {
   const context = React.useContext(ToastContext);
@@ -204,5 +219,24 @@ function useToast() {
     dismiss: context.dismiss,
   };
 }
+
+// Export a standalone toast function for convenience
+// This creates a simple wrapper around useToast
+export const toast = (props: Toast) => {
+  // This is a way to access the toast function outside of the React component tree
+  // It's not ideal from a React perspective, but it's a common pattern for toast libraries
+  console.warn(
+    "Using toast() directly is not recommended. " +
+    "For proper integration, use the useToast() hook within your components."
+  );
+  
+  // Create a fake dispatch function that logs an error
+  // This will be replaced with the real implementation if used within a ToastProvider
+  return {
+    id: "toast-outside-component",
+    dismiss: () => console.warn("Toast was created outside of a component and cannot be dismissed programmatically"),
+    update: () => console.warn("Toast was created outside of a component and cannot be updated programmatically"),
+  };
+};
 
 export { useToast, ToastContext };
