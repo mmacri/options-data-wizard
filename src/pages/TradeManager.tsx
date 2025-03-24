@@ -1,10 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-components/Card";
 import { DataTable, Trade, OptionType, calculateROI } from "@/components/ui-components/DataTable";
 import { TradeModal } from "@/components/ui-components/TradeModal";
 import { Plus, DollarSign, ChartBar, CircleCheck, Wallet, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import useLocalStorage from "@/hooks/useLocalStorage";
+import { importTradesCSV, exportTradesCSV } from "@/utils/csvUtils";
 
 // Mock data with new option types and financial information
 const mockTrades: Trade[] = [
@@ -248,15 +250,17 @@ const mockPerformanceMetrics: any[] = [
 
 export default function TradeManager() {
   const [activeTab, setActiveTab] = useState("details");
-  const [trades, setTrades] = useState<Trade[]>(mockTrades);
-  const [summaryData, setSummaryData] = useState<any[]>(mockSummaryData);
-  const [openPositions, setOpenPositions] = useState<any[]>(mockOpenPositions);
-  const [performanceMetrics, setPerformanceMetrics] = useState<any[]>(mockPerformanceMetrics);
+  const [trades, setTrades] = useLocalStorage<Trade[]>("trades", mockTrades);
+  const [summaryData, setSummaryData] = useLocalStorage<any[]>("tradeSummary", mockSummaryData);
+  const [openPositions, setOpenPositions] = useLocalStorage<any[]>("openPositions", mockOpenPositions);
+  const [performanceMetrics, setPerformanceMetrics] = useLocalStorage<any[]>("performanceMetrics", mockPerformanceMetrics);
   
   const [selectedTrade, setSelectedTrade] = useState<Trade | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isAddingTrade, setIsAddingTrade] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [csvImportText, setCsvImportText] = useState("");
   
   const { toast } = useToast();
   
@@ -428,6 +432,67 @@ export default function TradeManager() {
     setIsModalOpen(true);
   };
   
+  // Export data as CSV
+  const handleExportCSV = () => {
+    try {
+      const csvData = exportTradesCSV(trades);
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create download link and trigger click
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'trades_export.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Export successful",
+        description: "Trades have been exported to CSV."
+      });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting your data.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Import data from CSV text
+  const handleImportCSV = () => {
+    try {
+      if (!csvImportText.trim()) {
+        toast({
+          title: "Import failed",
+          description: "No CSV data provided.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const importedTrades = importTradesCSV(csvImportText);
+      setTrades([...trades, ...importedTrades]);
+      
+      toast({
+        title: "Import successful",
+        description: `${importedTrades.length} trades have been imported.`
+      });
+      
+      setIsImportModalOpen(false);
+      setCsvImportText("");
+    } catch (err) {
+      console.error('Import error:', err);
+      toast({
+        title: "Import failed",
+        description: "There was an error importing your data. Please check the CSV format.",
+        variant: "destructive"
+      });
+    }
+  };
+  
   // Get current data based on active tab
   const getCurrentData = () => {
     switch (activeTab) {
@@ -457,13 +522,29 @@ export default function TradeManager() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-light">Trade Manager</h1>
         
-        <button
-          onClick={handleAddNewTrade}
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Trade
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
+          >
+            Import CSV
+          </button>
+          
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
+          >
+            Export CSV
+          </button>
+          
+          <button
+            onClick={handleAddNewTrade}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Trade
+          </button>
+        </div>
       </div>
       
       {/* Financial Summary Cards */}
@@ -594,6 +675,41 @@ export default function TradeManager() {
         onSave={handleSaveTrade}
         isEditMode={isEditMode}
       />
+      
+      {/* CSV Import Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 animate-fade-in">
+            <h3 className="text-lg font-medium mb-4">Import Trades from CSV</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Paste your CSV data below. The first row should contain headers matching the required fields.
+            </p>
+            <textarea
+              value={csvImportText}
+              onChange={(e) => setCsvImportText(e.target.value)}
+              className="w-full h-40 p-3 border rounded-md mb-4 text-sm font-mono"
+              placeholder="tradeId,underlyingSymbol,optionType,entryDate,entryPrice,..."
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setCsvImportText("");
+                }}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportCSV}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

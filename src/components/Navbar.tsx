@@ -10,6 +10,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
+import { ThemeToggle } from "./ThemeToggle";
 
 type NavItem = {
   title: string;
@@ -74,14 +75,18 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* Mobile Menu Button */}
-        <button 
-          className="md:hidden btn-icon"
-          onClick={toggleMobileMenu}
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center space-x-2">
+          <ThemeToggle />
+          
+          {/* Mobile Menu Button */}
+          <button 
+            className="md:hidden btn-icon"
+            onClick={toggleMobileMenu}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Navigation */}
