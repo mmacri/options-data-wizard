@@ -6,8 +6,9 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
+// Reduce the toast duration from 1000000ms to 5000ms (5 seconds)
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_REMOVE_DELAY = 5000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -220,18 +221,27 @@ function useToast() {
   };
 }
 
-// Export a standalone toast function for convenience
-// This creates a simple wrapper around useToast
+// Singleton pattern for toast state to allow usage outside of React components
+// This is a common pattern for toast libraries
+let toastHandler: {
+  toast: (props: Toast) => { id: string; dismiss: () => void; update: (props: ToasterToast) => void }
+} | null = null;
+
+export const setToastHandler = (handler: any) => {
+  toastHandler = handler;
+};
+
+// Export a standalone toast function
 export const toast = (props: Toast) => {
-  // This is a way to access the toast function outside of the React component tree
-  // It's not ideal from a React perspective, but it's a common pattern for toast libraries
+  if (toastHandler) {
+    return toastHandler.toast(props);
+  }
+  
   console.warn(
-    "Using toast() directly is not recommended. " +
-    "For proper integration, use the useToast() hook within your components."
+    "Toast was triggered before the ToastProvider was initialized. " +
+    "For proper toast functionality, ensure ToastProvider is mounted before calling toast()."
   );
   
-  // Create a fake dispatch function that logs an error
-  // This will be replaced with the real implementation if used within a ToastProvider
   return {
     id: "toast-outside-component",
     dismiss: () => console.warn("Toast was created outside of a component and cannot be dismissed programmatically"),

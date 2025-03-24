@@ -11,9 +11,21 @@ import TradeManager from "./pages/TradeManager";
 import Reporting from "./pages/Reporting";
 import Settings from "./pages/Settings";
 import Navbar from "./components/Navbar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ThemeProvider } from "./hooks/useThemeMode";
-import { ToastProvider } from "./hooks/use-toast";
+import { ToastProvider, useToast, setToastHandler } from "./hooks/use-toast";
+
+// ToastInitializer ensures the toast handler is set up once the app is mounted
+const ToastInitializer = () => {
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    // Set the global toast handler
+    setToastHandler({ toast });
+  }, [toast]);
+  
+  return null;
+};
 
 const App = () => {
   // Create a client inside the component to ensure it's within React's lifecycle
@@ -24,8 +36,13 @@ const App = () => {
       <ThemeProvider defaultTheme="light">
         <ToastProvider>
           <TooltipProvider>
+            {/* Initialize the toast handler */}
+            <ToastInitializer />
+            
+            {/* We only need one toaster UI component */}
             <Toaster />
-            <Sonner />
+            {/* <Sonner /> - Removed to avoid duplicate toast UI */}
+            
             <BrowserRouter>
               <div className="min-h-screen flex flex-col">
                 <Navbar />
