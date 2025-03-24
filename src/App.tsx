@@ -41,7 +41,6 @@ const App = () => {
             
             {/* We only need one toaster UI component */}
             <Toaster />
-            {/* <Sonner /> - Removed to avoid duplicate toast UI */}
             
             <BrowserRouter>
               <div className="min-h-screen flex flex-col">
