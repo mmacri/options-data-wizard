@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { importTradesCSV, exportTradesCSV } from "@/utils/csvUtils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 const mockTrades: Trade[] = [
   {
