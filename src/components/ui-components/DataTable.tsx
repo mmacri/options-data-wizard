@@ -1,52 +1,16 @@
 
 import { useState, useEffect } from "react";
-import { Edit, Trash, Search, Filter, Download, UserCircle } from "lucide-react";
-import { StatusBadge } from "./StatusBadge";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { exportTradesCSV } from "@/utils/csvUtils";
-import { useToast } from "@/hooks/use-toast";
+import { DataTableFilter } from "./DataTableFilter";
+import { FinancialSummary } from "./FinancialSummary";
+import { TraderExportMenu } from "./TraderExportMenu";
+import { DataTableHeader } from "./DataTableHeader";
+import { DataTableRow } from "./DataTableRow";
+import { DataTablePagination } from "./DataTablePagination";
+import { Trade } from "./DataTableTypes";
 
-export type OptionType = "Call" | "Put" | "Bull Call Spread" | "Bear Put Spread" | "Covered Call" | "Iron Condor" | "Butterfly";
-
-export type Trade = {
-  id: string;
-  tradeId: string;
-  underlyingSymbol: string;
-  optionType: OptionType;
-  entryDate: string;
-  entryPrice: number;
-  exitDate?: string;
-  exitPrice?: number;
-  quantity: number;
-  totalPremium: number;
-  profitLoss: number;
-  status: "Open" | "Closed" | "Pending";
-  notes?: string;
-  totalInvested?: number;
-  roi?: number;
-  traderName?: string; // Added trader name field
-};
-
-// Helper function to calculate ROI
-export const calculateROI = (profitLoss: number, totalInvested: number): number => {
-  if (!totalInvested || totalInvested === 0) return 0;
-  return (profitLoss / totalInvested) * 100;
-};
+// Re-export types and helpers from DataTableTypes to maintain backward compatibility
+export * from "./DataTableTypes";
 
 interface DataTableProps {
   data: Trade[];
@@ -64,7 +28,6 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
   const [currentPage, setCurrentPage] = useState(1);
   const [traderFilter, setTraderFilter] = useState<string>("all");
   const itemsPerPage = 10;
-  const { toast } = useToast();
 
   // Get unique trader names for the filter
   const uniqueTraders = Array.from(new Set(data.map(trade => trade.traderName || "Unknown")));
@@ -138,260 +101,54 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
-  const handleExportTraderCSV = (trader: string) => {
-    try {
-      // Export only the specific trader's data
-      const csvData = exportTradesCSV(data, trader);
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${trader.replace(/\s+/g, '_')}_trades_export.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({
-        title: "Export successful",
-        description: `${trader}'s trades have been exported to CSV.`
-      });
-    } catch (err) {
-      console.error('Export error:', err);
-      toast({
-        title: "Export failed",
-        description: "There was an error exporting your data.",
-        variant: "destructive"
-      });
-    }
-  };
-
   // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value);
-  };
-
   return (
     <div className={cn("w-full", className)}>
       <div className="flex flex-col gap-4 mb-4">
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            />
-          </div>
+          <DataTableFilter
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            traderFilter={traderFilter}
+            setTraderFilter={setTraderFilter}
+            uniqueTraders={uniqueTraders}
+          />
           
-          {/* Trader Filter */}
-          <div className="w-full md:w-64">
-            <Select
-              value={traderFilter}
-              onValueChange={setTraderFilter}
-            >
-              <SelectTrigger className="w-full">
-                <div className="flex items-center">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Filter by Trader" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Traders</SelectItem>
-                {uniqueTraders.map((trader) => (
-                  <SelectItem key={trader} value={trader}>
-                    {trader}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Trader Export Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center justify-center rounded-md border border-input bg-background h-10 px-4 py-2 text-sm font-medium">
-                <UserCircle className="mr-2 h-4 w-4" />
-                <span>Trader Actions</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Export by Trader</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {uniqueTraders.map((trader) => (
-                <DropdownMenuItem 
-                  key={trader} 
-                  onClick={() => handleExportTraderCSV(trader)}
-                  className="cursor-pointer"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export {trader}'s Trades
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TraderExportMenu 
+            uniqueTraders={uniqueTraders}
+            data={data}
+          />
         </div>
         
         {/* Financial Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-muted/30 p-4 rounded-md">
-            <h3 className="text-sm font-medium mb-2">Total Currently Invested</h3>
-            <p className="text-xl font-semibold">{formatCurrency(totalInvestedAcrossOpenTrades)}</p>
-          </div>
-          <div className={cn(
-            "p-4 rounded-md",
-            totalProfitLoss > 0 ? "bg-success/20" : totalProfitLoss < 0 ? "bg-destructive/20" : "bg-muted/30"
-          )}>
-            <h3 className="text-sm font-medium mb-2">Total Profit/Loss</h3>
-            <p className={cn(
-              "text-xl font-semibold",
-              totalProfitLoss > 0 ? "text-success" : totalProfitLoss < 0 ? "text-destructive" : ""
-            )}>
-              {formatCurrency(totalProfitLoss)}
-            </p>
-          </div>
-        </div>
+        <FinancialSummary
+          totalInvestedAcrossOpenTrades={totalInvestedAcrossOpenTrades}
+          totalProfitLoss={totalProfitLoss}
+        />
       </div>
 
       <div className="overflow-auto rounded-md border">
         <table className="w-full caption-bottom text-sm">
-          <thead className="border-b bg-muted/50">
-            <tr>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('tradeId')}
-              >
-                Trade ID {getSortIcon('tradeId')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('traderName')}
-              >
-                Trader {getSortIcon('traderName')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('underlyingSymbol')}
-              >
-                Symbol {getSortIcon('underlyingSymbol')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('optionType')}
-              >
-                Type {getSortIcon('optionType')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('entryDate')}
-              >
-                Entry Date {getSortIcon('entryDate')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('totalInvested')}
-              >
-                Invested {getSortIcon('totalInvested')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('profitLoss')}
-              >
-                P/L {getSortIcon('profitLoss')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('roi')}
-              >
-                ROI % {getSortIcon('roi')}
-              </th>
-              <th 
-                className="h-12 px-4 text-left align-middle font-medium cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={() => handleSort('status')}
-              >
-                Status {getSortIcon('status')}
-              </th>
-              <th className="h-12 px-4 text-right align-middle font-medium">
-                Actions
-              </th>
-            </tr>
-          </thead>
+          <DataTableHeader 
+            handleSort={handleSort}
+            getSortIcon={getSortIcon}
+          />
           <tbody>
             {paginatedData.length > 0 ? (
               paginatedData.map((trade, index) => (
-                <tr 
-                  key={trade.id} 
-                  className={cn(
-                    "border-b transition-colors hover:bg-muted/50", 
-                    index % 2 === 0 ? "bg-white dark:bg-card" : "bg-muted/20"
-                  )}
-                  onClick={() => onView(trade)}
-                >
-                  <td className="p-4 align-middle font-medium">
-                    {trade.tradeId}
-                  </td>
-                  <td className="p-4 align-middle">
-                    {trade.traderName || "Unknown"}
-                  </td>
-                  <td className="p-4 align-middle">
-                    {trade.underlyingSymbol}
-                  </td>
-                  <td className="p-4 align-middle">
-                    {trade.optionType}
-                  </td>
-                  <td className="p-4 align-middle">
-                    {new Date(trade.entryDate).toLocaleDateString()}
-                  </td>
-                  <td className="p-4 align-middle">
-                    {formatCurrency(trade.totalInvested || 0)}
-                  </td>
-                  <td className={cn(
-                    "p-4 align-middle font-medium",
-                    trade.profitLoss > 0 ? "text-success" : trade.profitLoss < 0 ? "text-destructive" : ""
-                  )}>
-                    {formatCurrency(trade.profitLoss)}
-                  </td>
-                  <td className={cn(
-                    "p-4 align-middle font-medium",
-                    (trade.roi || 0) > 0 ? "text-success" : (trade.roi || 0) < 0 ? "text-destructive" : ""
-                  )}>
-                    {trade.roi?.toFixed(2) || "0.00"}%
-                  </td>
-                  <td className="p-4 align-middle">
-                    <StatusBadge status={trade.status} />
-                  </td>
-                  <td className="p-4 align-middle text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(trade);
-                        }}
-                        className="btn-icon bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(trade);
-                        }}
-                        className="btn-icon bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <DataTableRow
+                  key={trade.id}
+                  trade={trade}
+                  index={index}
+                  onView={onView}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
               ))
             ) : (
               <tr>
@@ -406,25 +163,11 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            Previous
-          </button>
-          <span className="text-sm">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-9 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            Next
-          </button>
-        </div>
+        <DataTablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          setCurrentPage={setCurrentPage}
+        />
       )}
     </div>
   );
