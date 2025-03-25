@@ -1,18 +1,18 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-components/Card";
 import { DataTable, Trade, OptionType, calculateROI } from "@/components/ui-components/DataTable";
 import { TradeModal } from "@/components/ui-components/TradeModal";
-import { Plus, DollarSign, ChartBar, CircleCheck, Wallet, TrendingUp } from "lucide-react";
+import { Plus, DollarSign, ChartBar, CircleCheck, Wallet, TrendingUp, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { importTradesCSV, exportTradesCSV } from "@/utils/csvUtils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-// Mock data with new option types and financial information
 const mockTrades: Trade[] = [
   {
     id: "1",
     tradeId: "T1001",
+    traderName: "John Smith",
     underlyingSymbol: "AAPL",
     optionType: "Call",
     entryDate: "2023-01-15",
@@ -30,6 +30,7 @@ const mockTrades: Trade[] = [
   {
     id: "2",
     tradeId: "T1002",
+    traderName: "Sarah Johnson",
     underlyingSymbol: "TSLA",
     optionType: "Put",
     entryDate: "2023-02-01",
@@ -45,6 +46,7 @@ const mockTrades: Trade[] = [
   {
     id: "3",
     tradeId: "T1003",
+    traderName: "John Smith",
     underlyingSymbol: "MSFT",
     optionType: "Bull Call Spread",
     entryDate: "2023-03-10",
@@ -60,6 +62,7 @@ const mockTrades: Trade[] = [
   {
     id: "4",
     tradeId: "T1004",
+    traderName: "Sarah Johnson",
     underlyingSymbol: "AMD",
     optionType: "Bear Put Spread",
     entryDate: "2023-03-15",
@@ -75,6 +78,7 @@ const mockTrades: Trade[] = [
   {
     id: "5",
     tradeId: "T1005",
+    traderName: "Mike Williams",
     underlyingSymbol: "NVDA",
     optionType: "Covered Call",
     entryDate: "2023-03-20",
@@ -90,6 +94,7 @@ const mockTrades: Trade[] = [
   {
     id: "6",
     tradeId: "T1006",
+    traderName: "Mike Williams",
     underlyingSymbol: "SPY",
     optionType: "Iron Condor",
     entryDate: "2023-04-05",
@@ -105,6 +110,7 @@ const mockTrades: Trade[] = [
   {
     id: "7",
     tradeId: "T1007",
+    traderName: "John Smith",
     underlyingSymbol: "AMZN",
     optionType: "Butterfly",
     entryDate: "2023-04-10",
@@ -119,11 +125,11 @@ const mockTrades: Trade[] = [
   }
 ];
 
-// Mock data for the Trade Summary tab
 const mockSummaryData: any[] = [
   {
     id: "101",
     summaryId: "S1001",
+    traderName: "John Smith",
     underlyingSymbol: "AAPL",
     totalTrades: 5,
     totalProfitLoss: 3500,
@@ -136,6 +142,7 @@ const mockSummaryData: any[] = [
   {
     id: "102",
     summaryId: "S1002",
+    traderName: "Sarah Johnson",
     underlyingSymbol: "TSLA",
     totalTrades: 8,
     totalProfitLoss: -1200,
@@ -148,6 +155,7 @@ const mockSummaryData: any[] = [
   {
     id: "103",
     summaryId: "S1003",
+    traderName: "John Smith",
     underlyingSymbol: "MSFT",
     totalTrades: 4,
     totalProfitLoss: 2100,
@@ -159,7 +167,6 @@ const mockSummaryData: any[] = [
   }
 ];
 
-// Mock data for Open Positions
 const mockOpenPositions: any[] = [
   {
     id: "201",
@@ -205,7 +212,6 @@ const mockOpenPositions: any[] = [
   }
 ];
 
-// Mock data for Performance Metrics
 const mockPerformanceMetrics: any[] = [
   {
     id: "301",
@@ -264,7 +270,8 @@ export default function TradeManager() {
   
   const { toast } = useToast();
   
-  // Financial summary calculations
+  const uniqueTraders = Array.from(new Set(trades.map(trade => trade.traderName || "Unknown")));
+  
   const totalInvested = trades
     .filter(trade => trade.status === "Open")
     .reduce((total, trade) => total + (trade.totalInvested || 0), 0);
@@ -273,6 +280,23 @@ export default function TradeManager() {
   
   const totalOpenTrades = trades.filter(trade => trade.status === "Open").length;
   const totalClosedTrades = trades.filter(trade => trade.status === "Closed").length;
+  
+  const traderStats = uniqueTraders.map(trader => {
+    const traderTrades = trades.filter(trade => trade.traderName === trader);
+    const openTradeCount = traderTrades.filter(trade => trade.status === "Open").length;
+    const profitLoss = traderTrades.reduce((sum, trade) => sum + trade.profitLoss, 0);
+    const invested = traderTrades
+      .filter(trade => trade.status === "Open")
+      .reduce((sum, trade) => sum + (trade.totalInvested || 0), 0);
+      
+    return {
+      name: trader,
+      tradeCount: traderTrades.length,
+      openTrades: openTradeCount,
+      profitLoss,
+      invested
+    };
+  });
   
   const handleViewTrade = (trade: Trade) => {
     setSelectedTrade(trade);
@@ -317,7 +341,6 @@ export default function TradeManager() {
   };
   
   const handleSaveTrade = (updatedTrade: Trade) => {
-    // Make sure ROI is calculated correctly
     const calculatedROI = calculateROI(
       updatedTrade.profitLoss,
       updatedTrade.totalInvested || updatedTrade.entryPrice * updatedTrade.quantity
@@ -337,7 +360,6 @@ export default function TradeManager() {
           setTrades(updatedData);
           break;
         case "summary":
-          // For summary, we'd typically not add individual trades
           toast({
             title: "Not applicable",
             description: "Cannot add individual trades to the summary tab.",
@@ -355,7 +377,6 @@ export default function TradeManager() {
             setIsModalOpen(false);
             return;
           }
-          // Convert to open position format
           const newPosition = {
             id: crypto.randomUUID(),
             positionId: `P${Math.floor(Math.random() * 10000)}`,
@@ -374,7 +395,6 @@ export default function TradeManager() {
           setOpenPositions(updatedData);
           break;
         case "metrics":
-          // For metrics, we'd typically not add individual trades
           toast({
             title: "Not applicable",
             description: "Cannot add individual trades to the metrics tab.",
@@ -432,14 +452,12 @@ export default function TradeManager() {
     setIsModalOpen(true);
   };
   
-  // Export data as CSV
   const handleExportCSV = () => {
     try {
       const csvData = exportTradesCSV(trades);
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       
-      // Create download link and trigger click
       const link = document.createElement('a');
       link.setAttribute('href', url);
       link.setAttribute('download', 'trades_export.csv');
@@ -461,7 +479,6 @@ export default function TradeManager() {
     }
   };
   
-  // Import data from CSV text
   const handleImportCSV = () => {
     try {
       if (!csvImportText.trim()) {
@@ -493,7 +510,6 @@ export default function TradeManager() {
     }
   };
   
-  // Get current data based on active tab
   const getCurrentData = () => {
     switch (activeTab) {
       case "details":
@@ -509,7 +525,6 @@ export default function TradeManager() {
     }
   };
   
-  // Format currency
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -547,7 +562,6 @@ export default function TradeManager() {
         </div>
       </div>
       
-      {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card glass>
           <CardContent className="pt-6">
@@ -613,61 +627,173 @@ export default function TradeManager() {
             </div>
           </CardContent>
         </Card>
-      </div>
-      
-      {/* Tabs */}
-      <div className="mb-8">
-        <div className="flex space-x-2 border-b">
-          <button
-            className={`tab-button ${activeTab === "details" ? "data-[state=active]" : ""}`}
-            onClick={() => setActiveTab("details")}
-          >
-            Trade Details
-          </button>
-          <button
-            className={`tab-button ${activeTab === "summary" ? "data-[state=active]" : ""}`}
-            onClick={() => setActiveTab("summary")}
-          >
-            Trade Summary
-          </button>
-          <button
-            className={`tab-button ${activeTab === "positions" ? "data-[state=active]" : ""}`}
-            onClick={() => setActiveTab("positions")}
-          >
-            Open Positions
-          </button>
-          <button
-            className={`tab-button ${activeTab === "metrics" ? "data-[state=active]" : ""}`}
-            onClick={() => setActiveTab("metrics")}
-          >
-            Performance Metrics
-          </button>
-        </div>
-      </div>
-      
-      {/* Tab Content */}
-      <div className="animate-fade-in">
+        
         <Card glass>
-          <CardHeader>
-            <CardTitle>
-              {activeTab === "details" && "Trade Details"}
-              {activeTab === "summary" && "Trade Summary"}
-              {activeTab === "positions" && "Open Positions"}
-              {activeTab === "metrics" && "Performance Metrics"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable 
-              data={getCurrentData()}
-              onView={handleViewTrade}
-              onEdit={handleEditTrade}
-              onDelete={handleDeleteTrade}
-            />
+          <CardContent className="pt-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground">Traders</p>
+                <h3 className="text-2xl font-semibold mt-1">{uniqueTraders.length}</h3>
+              </div>
+              <div className="bg-primary/10 p-2 rounded-full">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
       
-      {/* Trade Details Modal */}
+      <Tabs defaultValue="details" className="mb-8" onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0">
+          <TabsTrigger 
+            value="details" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            Trade Details
+          </TabsTrigger>
+          <TabsTrigger 
+            value="summary" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            Trade Summary
+          </TabsTrigger>
+          <TabsTrigger 
+            value="positions" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            Open Positions
+          </TabsTrigger>
+          <TabsTrigger 
+            value="metrics" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            Performance Metrics
+          </TabsTrigger>
+          <TabsTrigger 
+            value="traders" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            Traders
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="details" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Trade Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable 
+                data={trades}
+                onView={handleViewTrade}
+                onEdit={handleEditTrade}
+                onDelete={handleDeleteTrade}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="summary" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Trade Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable 
+                data={summaryData}
+                onView={handleViewTrade}
+                onEdit={handleEditTrade}
+                onDelete={handleDeleteTrade}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="positions" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Open Positions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable 
+                data={openPositions}
+                onView={handleViewTrade}
+                onEdit={handleEditTrade}
+                onDelete={handleDeleteTrade}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="metrics" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Performance Metrics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable 
+                data={performanceMetrics}
+                onView={handleViewTrade}
+                onEdit={handleEditTrade}
+                onDelete={handleDeleteTrade}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="traders" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Trader Performance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto rounded-md border">
+                <table className="w-full caption-bottom text-sm">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <th className="h-12 px-4 text-left align-middle font-medium">Trader</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium">Total Trades</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium">Open Trades</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium">Invested</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium">Profit/Loss</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium">ROI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {traderStats.map((trader, index) => (
+                      <tr 
+                        key={trader.name} 
+                        className={cn(
+                          "border-b transition-colors hover:bg-muted/50", 
+                          index % 2 === 0 ? "bg-white dark:bg-card" : "bg-muted/20"
+                        )}
+                      >
+                        <td className="p-4 align-middle font-medium">{trader.name}</td>
+                        <td className="p-4 align-middle">{trader.tradeCount}</td>
+                        <td className="p-4 align-middle">{trader.openTrades}</td>
+                        <td className="p-4 align-middle">{formatCurrency(trader.invested)}</td>
+                        <td className={cn(
+                          "p-4 align-middle font-medium",
+                          trader.profitLoss > 0 ? "text-success" : trader.profitLoss < 0 ? "text-destructive" : ""
+                        )}>
+                          {formatCurrency(trader.profitLoss)}
+                        </td>
+                        <td className={cn(
+                          "p-4 align-middle font-medium",
+                          trader.profitLoss > 0 ? "text-success" : trader.profitLoss < 0 ? "text-destructive" : ""
+                        )}>
+                          {trader.invested > 0 ? (trader.profitLoss / trader.invested * 100).toFixed(2) : "0.00"}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      
       <TradeModal 
         trade={selectedTrade}
         isOpen={isModalOpen}
@@ -676,7 +802,6 @@ export default function TradeManager() {
         isEditMode={isEditMode}
       />
       
-      {/* CSV Import Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 animate-fade-in">

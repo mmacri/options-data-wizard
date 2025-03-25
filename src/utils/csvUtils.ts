@@ -6,6 +6,7 @@ export const exportTradesCSV = (trades: Trade[]): string => {
   // Define all headers
   const headers = [
     'tradeId',
+    'traderName', // Added trader name
     'underlyingSymbol',
     'optionType',
     'entryDate',

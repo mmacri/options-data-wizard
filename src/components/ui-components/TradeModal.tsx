@@ -32,7 +32,8 @@ export function TradeModal({
     profitLoss: 0,
     status: "Open",
     totalInvested: 0,
-    roi: 0
+    roi: 0,
+    traderName: "", // Added trader name field
   });
 
   // Auto-calculate total invested and ROI based on other fields
@@ -58,7 +59,8 @@ export function TradeModal({
         exitDate: trade.exitDate ? new Date(trade.exitDate).toISOString().split('T')[0] : undefined,
         // Ensure the financial calculations are updated
         totalInvested: trade.totalInvested || trade.entryPrice * trade.quantity,
-        roi: trade.roi || calculateROI(trade.profitLoss, trade.totalInvested || trade.entryPrice * trade.quantity)
+        roi: trade.roi || calculateROI(trade.profitLoss, trade.totalInvested || trade.entryPrice * trade.quantity),
+        traderName: trade.traderName || "" // Set trader name
       });
     } else {
       // Generate a random trade ID for new trades
@@ -74,7 +76,8 @@ export function TradeModal({
         profitLoss: 0,
         status: "Open",
         totalInvested: 0,
-        roi: 0
+        roi: 0,
+        traderName: "" // Initialize trader name
       });
     }
   }, [trade, isOpen]);
@@ -146,6 +149,25 @@ export function TradeModal({
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Trader Name field - NEW */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="traderName">
+                Trader Name
+              </label>
+              <input
+                id="traderName"
+                name="traderName"
+                value={formData.traderName || ""}
+                onChange={handleChange}
+                disabled={!isEditMode}
+                placeholder="Enter trader name"
+                className={cn(
+                  "w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  !isEditMode && "opacity-70"
+                )}
+              />
+            </div>
+            
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="tradeId">
                 Trade ID
