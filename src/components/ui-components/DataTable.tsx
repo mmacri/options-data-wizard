@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Edit, Trash, Search, Filter } from "lucide-react";
+import { Edit, Trash, Search, Filter, Download, UserCircle } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { cn } from "@/lib/utils";
 import {
@@ -10,6 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportTradesCSV } from "@/utils/csvUtils";
+import { useToast } from "@/hooks/use-toast";
 
 export type OptionType = "Call" | "Put" | "Bull Call Spread" | "Bear Put Spread" | "Covered Call" | "Iron Condor" | "Butterfly";
 
@@ -54,6 +64,7 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
   const [currentPage, setCurrentPage] = useState(1);
   const [traderFilter, setTraderFilter] = useState<string>("all");
   const itemsPerPage = 10;
+  const { toast } = useToast();
 
   // Get unique trader names for the filter
   const uniqueTraders = Array.from(new Set(data.map(trade => trade.traderName || "Unknown")));
@@ -127,6 +138,34 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
+  const handleExportTraderCSV = (trader: string) => {
+    try {
+      // Export only the specific trader's data
+      const csvData = exportTradesCSV(data, trader);
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${trader.replace(/\s+/g, '_')}_trades_export.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Export successful",
+        description: `${trader}'s trades have been exported to CSV.`
+      });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting your data.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -176,6 +215,30 @@ export function DataTable({ data, onView, onEdit, onDelete, className }: DataTab
               </SelectContent>
             </Select>
           </div>
+
+          {/* Trader Export Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center justify-center rounded-md border border-input bg-background h-10 px-4 py-2 text-sm font-medium">
+                <UserCircle className="mr-2 h-4 w-4" />
+                <span>Trader Actions</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Export by Trader</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {uniqueTraders.map((trader) => (
+                <DropdownMenuItem 
+                  key={trader} 
+                  onClick={() => handleExportTraderCSV(trader)}
+                  className="cursor-pointer"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export {trader}'s Trades
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         
         {/* Financial Summary */}

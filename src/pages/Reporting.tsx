@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui-components/Card";
 import { LineChart } from "@/components/charts/LineChart";
@@ -12,12 +11,21 @@ import {
   Printer,
   Search,
   Calendar,
+  Filter,
+  UserCircle,
   ArrowDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { exportTradesCSV } from "@/utils/csvUtils";
 
-// Mock data for demonstration
 const mockTrades: Trade[] = [
   {
     id: "1",
@@ -88,7 +96,6 @@ const mockTrades: Trade[] = [
   }
 ];
 
-// Historical profit/loss data for the line chart
 const mockProfitLossHistory = [
   { date: "2023-01-01", profitLoss: 0 },
   { date: "2023-01-15", profitLoss: 500 },
@@ -99,7 +106,6 @@ const mockProfitLossHistory = [
   { date: "2023-03-31", profitLoss: 2400 }
 ];
 
-// Trade status data for pie chart
 const getStatusDistribution = (trades: Trade[]) => {
   const statusCounts = {
     Open: 0,
@@ -118,7 +124,6 @@ const getStatusDistribution = (trades: Trade[]) => {
   ];
 };
 
-// Underlying performance data for bar chart
 const getUnderlyingPerformance = (trades: Trade[]) => {
   const performanceBySymbol: Record<string, number> = {};
   
@@ -141,14 +146,16 @@ export default function Reporting() {
   const [selectedTrade, setSelectedTrade] = useState<Trade | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Filter states
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [symbolFilter, setSymbolFilter] = useState<string>("");
   const [optionTypeFilter, setOptionTypeFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [traderFilter, setTraderFilter] = useState<string>("");
   
   const { toast } = useToast();
+  
+  const uniqueTraders = Array.from(new Set(trades.map(trade => trade.traderName || "Unknown")));
   
   const handleViewTrade = (trade: Trade) => {
     setSelectedTrade(trade);
@@ -156,13 +163,11 @@ export default function Reporting() {
   };
   
   const handleEditTrade = (trade: Trade) => {
-    // For reporting, we're not allowing edits
     setSelectedTrade(trade);
     setIsModalOpen(true);
   };
   
   const handleDeleteTrade = (trade: Trade) => {
-    // For reporting, we're not allowing deletes
     toast({
       title: "Action not available",
       description: "Delete is not available in the reporting view."
@@ -172,7 +177,6 @@ export default function Reporting() {
   const applyFilters = () => {
     let result = [...trades];
     
-    // Apply date filters
     if (startDate) {
       const start = new Date(startDate);
       result = result.filter(trade => new Date(trade.entryDate) >= start);
@@ -183,21 +187,22 @@ export default function Reporting() {
       result = result.filter(trade => new Date(trade.entryDate) <= end);
     }
     
-    // Apply symbol filter
     if (symbolFilter) {
       result = result.filter(trade => 
         trade.underlyingSymbol.toLowerCase().includes(symbolFilter.toLowerCase())
       );
     }
     
-    // Apply option type filter
     if (optionTypeFilter) {
       result = result.filter(trade => trade.optionType === optionTypeFilter);
     }
     
-    // Apply status filter
     if (statusFilter) {
       result = result.filter(trade => trade.status === statusFilter);
+    }
+    
+    if (traderFilter) {
+      result = result.filter(trade => trade.traderName === traderFilter);
     }
     
     setFilteredTrades(result);
@@ -214,6 +219,7 @@ export default function Reporting() {
     setSymbolFilter("");
     setOptionTypeFilter("");
     setStatusFilter("");
+    setTraderFilter("");
     setFilteredTrades(trades);
     
     toast({
@@ -223,29 +229,41 @@ export default function Reporting() {
   };
   
   const exportToCSV = () => {
-    // In a real application, this would generate and download a CSV file
-    toast({
-      title: "Export started",
-      description: "Your report is being prepared for download."
-    });
-    
-    // Mock download delay
-    setTimeout(() => {
+    try {
+      const csvData = exportTradesCSV(filteredTrades, traderFilter || undefined);
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      const filename = traderFilter ? 
+        `${traderFilter.replace(/\s+/g, '_')}_report.csv` : 
+        'trades_report.csv';
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
       toast({
         title: "Export complete",
         description: "Your report has been downloaded."
       });
-    }, 1500);
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({
+        title: "Export failed",
+        description: "There was an error exporting your data.",
+        variant: "destructive"
+      });
+    }
   };
   
   const printToPDF = () => {
-    // In a real application, this would generate and print a PDF
     toast({
       title: "Print started",
       description: "Your report is being prepared for printing."
     });
     
-    // Mock print delay
     setTimeout(() => {
       toast({
         title: "Print ready",
@@ -254,7 +272,6 @@ export default function Reporting() {
     }, 1500);
   };
   
-  // Calculate summary metrics for filtered trades
   const totalTrades = filteredTrades.length;
   const profitableTrades = filteredTrades.filter(trade => trade.profitLoss > 0).length;
   const totalProfit = filteredTrades.reduce((sum, trade) => {
@@ -281,7 +298,6 @@ export default function Reporting() {
     <div className="container mx-auto px-4 py-8 animate-fade-in">
       <h1 className="text-3xl font-light mb-8">Reporting</h1>
       
-      {/* Filter Panel */}
       <Card glass className="mb-8 animate-slide-up" style={{ animationDelay: "100ms" }}>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -352,6 +368,11 @@ export default function Reporting() {
                   <option value="">All Types</option>
                   <option value="Call">Call</option>
                   <option value="Put">Put</option>
+                  <option value="Bull Call Spread">Bull Call Spread</option>
+                  <option value="Bear Put Spread">Bear Put Spread</option>
+                  <option value="Covered Call">Covered Call</option>
+                  <option value="Iron Condor">Iron Condor</option>
+                  <option value="Butterfly">Butterfly</option>
                 </select>
               </div>
             </div>
@@ -371,6 +392,24 @@ export default function Reporting() {
                   <option value="Open">Open</option>
                   <option value="Closed">Closed</option>
                   <option value="Pending">Pending</option>
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="traderFilter">
+                  <UserCircle className="h-4 w-4 inline-block mr-2" />
+                  Trader
+                </label>
+                <select
+                  id="traderFilter"
+                  value={traderFilter}
+                  onChange={(e) => setTraderFilter(e.target.value)}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">All Traders</option>
+                  {uniqueTraders.map(trader => (
+                    <option key={trader} value={trader}>{trader}</option>
+                  ))}
                 </select>
               </div>
               
@@ -394,7 +433,6 @@ export default function Reporting() {
         </CardContent>
       </Card>
       
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card glass className="animate-slide-up" style={{ animationDelay: "200ms" }}>
           <CardHeader className="pb-2">
@@ -483,7 +521,6 @@ export default function Reporting() {
         </Card>
       </div>
       
-      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         <Card glass className="lg:col-span-2 animate-slide-up" style={{ animationDelay: "500ms" }}>
           <CardHeader>
@@ -523,7 +560,6 @@ export default function Reporting() {
         </Card>
       </div>
       
-      {/* Trade Data Table */}
       <Card glass className="animate-slide-up" style={{ animationDelay: "800ms" }}>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -532,6 +568,7 @@ export default function Reporting() {
           </CardTitle>
           <CardDescription>
             Showing {filteredTrades.length} trades based on filter criteria
+            {traderFilter && <span className="ml-1 font-semibold">for {traderFilter}</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -544,7 +581,6 @@ export default function Reporting() {
         </CardContent>
       </Card>
       
-      {/* Trade Details Modal */}
       <TradeModal 
         trade={selectedTrade}
         isOpen={isModalOpen}
@@ -555,3 +591,4 @@ export default function Reporting() {
     </div>
   );
 }
+

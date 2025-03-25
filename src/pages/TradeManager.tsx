@@ -2,12 +2,20 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-components/Card";
 import { DataTable, Trade, OptionType, calculateROI } from "@/components/ui-components/DataTable";
 import { TradeModal } from "@/components/ui-components/TradeModal";
-import { Plus, DollarSign, ChartBar, CircleCheck, Wallet, TrendingUp, Users } from "lucide-react";
+import { Plus, DollarSign, ChartBar, CircleCheck, Wallet, TrendingUp, Users, Download, Upload, UserCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { importTradesCSV, exportTradesCSV } from "@/utils/csvUtils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const mockTrades: Trade[] = [
   {
@@ -268,6 +276,7 @@ export default function TradeManager() {
   const [isAddingTrade, setIsAddingTrade] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [csvImportText, setCsvImportText] = useState("");
+  const [selectedTraderImport, setSelectedTraderImport] = useState<string | null>(null);
   
   const { toast } = useToast();
   
@@ -453,22 +462,27 @@ export default function TradeManager() {
     setIsModalOpen(true);
   };
   
-  const handleExportCSV = () => {
+  const handleExportCSV = (traderName?: string) => {
     try {
-      const csvData = exportTradesCSV(trades);
+      const csvData = exportTradesCSV(trades, traderName);
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', 'trades_export.csv');
+      const filename = traderName ? 
+        `${traderName.replace(/\s+/g, '_')}_trades_export.csv` : 
+        'trades_export.csv';
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
       toast({
         title: "Export successful",
-        description: "Trades have been exported to CSV."
+        description: traderName ? 
+          `${traderName}'s trades have been exported to CSV.` : 
+          "Trades have been exported to CSV."
       });
     } catch (err) {
       console.error('Export error:', err);
@@ -491,7 +505,7 @@ export default function TradeManager() {
         return;
       }
       
-      const importedTrades = importTradesCSV(csvImportText);
+      const importedTrades = importTradesCSV(csvImportText, selectedTraderImport || undefined);
       setTrades([...trades, ...importedTrades]);
       
       toast({
@@ -501,6 +515,7 @@ export default function TradeManager() {
       
       setIsImportModalOpen(false);
       setCsvImportText("");
+      setSelectedTraderImport(null);
     } catch (err) {
       console.error('Import error:', err);
       toast({
@@ -539,19 +554,56 @@ export default function TradeManager() {
         <h1 className="text-3xl font-light">Trade Manager</h1>
         
         <div className="flex gap-2">
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
-          >
-            Import CSV
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsImportModalOpen(true)}>
+                Import All Trades
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Import for Trader</DropdownMenuLabel>
+              {uniqueTraders.map(trader => (
+                <DropdownMenuItem 
+                  key={`import-${trader}`}
+                  onClick={() => {
+                    setSelectedTraderImport(trader);
+                    setIsImportModalOpen(true);
+                  }}
+                >
+                  {trader}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
-          >
-            Export CSV
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExportCSV()}>
+                Export All Trades
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Export by Trader</DropdownMenuLabel>
+              {uniqueTraders.map(trader => (
+                <DropdownMenuItem 
+                  key={`export-${trader}`}
+                  onClick={() => handleExportCSV(trader)}
+                >
+                  {trader}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <button
             onClick={handleAddNewTrade}
@@ -758,6 +810,7 @@ export default function TradeManager() {
                       <th className="h-12 px-4 text-left align-middle font-medium">Invested</th>
                       <th className="h-12 px-4 text-left align-middle font-medium">Profit/Loss</th>
                       <th className="h-12 px-4 text-left align-middle font-medium">ROI</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -785,6 +838,17 @@ export default function TradeManager() {
                         )}>
                           {trader.invested > 0 ? (trader.profitLoss / trader.invested * 100).toFixed(2) : "0.00"}%
                         </td>
+                        <td className="p-4 align-middle">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleExportCSV(trader.name)}
+                              className="inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-8 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Export
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -806,10 +870,25 @@ export default function TradeManager() {
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md bg-card rounded-lg shadow-lg p-6 animate-fade-in">
-            <h3 className="text-lg font-medium mb-4">Import Trades from CSV</h3>
+            <h3 className="text-lg font-medium mb-4">
+              {selectedTraderImport ? `Import Trades for ${selectedTraderImport}` : "Import Trades from CSV"}
+            </h3>
             <p className="text-sm text-muted-foreground mb-4">
               Paste your CSV data below. The first row should contain headers matching the required fields.
+              {selectedTraderImport && ` All imported trades will be assigned to ${selectedTraderImport}.`}
             </p>
+            {selectedTraderImport && (
+              <div className="flex items-center mb-4 p-2 bg-primary/10 rounded-md">
+                <UserCircle className="h-5 w-5 mr-2 text-primary" />
+                <span>Importing for: <strong>{selectedTraderImport}</strong></span>
+                <button 
+                  className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setSelectedTraderImport(null)}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
             <textarea
               value={csvImportText}
               onChange={(e) => setCsvImportText(e.target.value)}
@@ -821,6 +900,7 @@ export default function TradeManager() {
                 onClick={() => {
                   setIsImportModalOpen(false);
                   setCsvImportText("");
+                  setSelectedTraderImport(null);
                 }}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
               >
