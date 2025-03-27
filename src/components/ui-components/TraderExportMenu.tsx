@@ -9,8 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { exportTradesCSV } from "@/utils/csvUtils";
 import { Trade } from "./DataTableTypes";
+import { ExportFormatDialog } from "@/components/trade-manager/ExportFormatDialog";
+import { exportTrades } from "@/utils/exportUtils";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 interface TraderExportMenuProps {
   uniqueTraders: string[];
@@ -19,24 +21,34 @@ interface TraderExportMenuProps {
 
 export function TraderExportMenu({ uniqueTraders, data }: TraderExportMenuProps) {
   const { toast } = useToast();
+  const [settings] = useLocalStorage("userSettings", {
+    exportSettings: {
+      defaultFormat: "csv" as const,
+      includeMetadata: true,
+      includeCharts: false,
+      includeSummary: true,
+    }
+  });
 
-  const handleExportTraderCSV = (trader: string) => {
+  const handleExportTrader = async (
+    trader: string, 
+    format: 'csv' | 'excel' | 'pdf' | 'json' = settings.exportSettings?.defaultFormat || 'csv',
+    options = { 
+      includeMetadata: settings.exportSettings?.includeMetadata || true, 
+      includeCharts: settings.exportSettings?.includeCharts || false, 
+      includeSummary: settings.exportSettings?.includeSummary || true 
+    }
+  ) => {
     try {
-      // Export only the specific trader's data
-      const csvData = exportTradesCSV(data, trader);
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+      // Filter data for the specific trader
+      const traderData = data.filter(trade => trade.traderName === trader);
       
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${trader.replace(/\s+/g, '_')}_trades_export.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Export the data using our utility
+      await exportTrades(traderData, format, trader, options);
       
       toast({
         title: "Export successful",
-        description: `${trader}'s trades have been exported to CSV.`
+        description: `${trader}'s trades have been exported as ${format.toUpperCase()}.`
       });
     } catch (err) {
       console.error('Export error:', err);
@@ -61,12 +73,19 @@ export function TraderExportMenu({ uniqueTraders, data }: TraderExportMenuProps)
         <DropdownMenuSeparator />
         {uniqueTraders.map((trader) => (
           <DropdownMenuItem 
-            key={trader} 
-            onClick={() => handleExportTraderCSV(trader)}
-            className="cursor-pointer"
+            key={trader}
+            className="cursor-pointer p-0"
           >
-            <Download className="mr-2 h-4 w-4" />
-            Export {trader}'s Trades
+            <ExportFormatDialog 
+              onExport={(format, options) => handleExportTrader(trader, format, options)}
+              trigger={
+                <button className="flex w-full items-center px-2 py-1.5 text-sm">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export {trader}'s Trades
+                </button>
+              }
+              traderName={trader}
+            />
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
