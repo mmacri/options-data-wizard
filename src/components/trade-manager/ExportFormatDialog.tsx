@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { FileSpreadsheet, FileText, FilePdf, FileJson } from "lucide-react";
+import { FileSpreadsheet, FileText, FileType, FileJson } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -120,7 +120,7 @@ export function ExportFormatDialog({ onExport, trigger, traderName }: ExportForm
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="pdf" id="pdf" />
                 <Label htmlFor="pdf" className="flex items-center cursor-pointer">
-                  <FilePdf className="h-4 w-4 mr-2" />
+                  <FileType className="h-4 w-4 mr-2" />
                   PDF
                 </Label>
               </div>

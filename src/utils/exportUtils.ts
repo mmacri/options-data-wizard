@@ -98,12 +98,13 @@ export const exportTradesPDF = async (
   includeSummary = true
 ) => {
   try {
-    // For PDF export, we need to use a third-party library
+    // For PDF export, we need to use third-party libraries
     const { jsPDF } = await import('jspdf');
-    const { autoTable } = await import('jspdf-autotable');
+    const autoTable = await import('jspdf-autotable');
     
     // Create new PDF document
     const doc = new jsPDF();
+    let finalY = 0;
     
     // Add title
     const title = traderName 
@@ -131,7 +132,7 @@ export const exportTradesPDF = async (
       const winRate = ((profitableTrades / trades.length) * 100).toFixed(2);
       
       // Add summary table
-      autoTable(doc, {
+      const summaryTable = autoTable.default(doc, {
         head: [['Metric', 'Value']],
         body: [
           ['Open Trades', openTrades.toString()],
@@ -147,6 +148,10 @@ export const exportTradesPDF = async (
         styles: { fontSize: 10 },
         headStyles: { fillColor: [66, 139, 202] },
       });
+      
+      finalY = summaryTable.finalY || 45;
+    } else {
+      finalY = 45;
     }
     
     // Add trades table
@@ -164,10 +169,10 @@ export const exportTradesPDF = async (
       trade.traderName || 'Unknown',
     ]);
     
-    autoTable(doc, {
+    autoTable.default(doc, {
       head: [['ID', 'Symbol', 'Type', 'Entry Date', 'Exit Date', 'Entry', 'Exit', 'Qty', 'P/L', 'Status', 'Trader']],
       body: tableData,
-      startY: includeSummary ? doc.lastAutoTable.finalY + 15 : 45,
+      startY: includeSummary ? finalY + 15 : 45,
       theme: 'grid',
       styles: { fontSize: 8 },
       headStyles: { fillColor: [66, 139, 202] },
