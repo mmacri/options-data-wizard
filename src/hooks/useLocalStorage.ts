@@ -42,12 +42,19 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === key && e.newValue) {
-        setStoredValue(JSON.parse(e.newValue));
+        try {
+          setStoredValue(JSON.parse(e.newValue) as T);
+        } catch (error) {
+          console.warn(`Error parsing localStorage value on storage event:`, error);
+        }
       }
     };
     
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+    return undefined;
   }, [key]);
 
   return [storedValue, setValue];

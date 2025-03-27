@@ -1,6 +1,7 @@
 
 import { Trade } from "@/components/ui-components/DataTableTypes";
 import { exportTradesCSV } from "./csvUtils";
+import { ExportFormat } from "@/types/settings";
 
 // Helper function to get current date/time formatted for filenames
 function getFormattedDateTime() {
@@ -100,11 +101,12 @@ export const exportTradesPDF = async (
   try {
     // For PDF export, we need to use third-party libraries
     const { jsPDF } = await import('jspdf');
-    const autoTable = await import('jspdf-autotable');
+    const autoTableModule = await import('jspdf-autotable');
+    const autoTable = autoTableModule.default;
     
     // Create new PDF document
     const doc = new jsPDF();
-    let finalY = 0;
+    let currentY = 0;
     
     // Add title
     const title = traderName 
@@ -113,12 +115,14 @@ export const exportTradesPDF = async (
     
     doc.setFontSize(18);
     doc.text(title, 14, 22);
+    currentY = 22;
     
     // Add metadata if requested
     if (includeMetadata) {
       doc.setFontSize(10);
       doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
       doc.text(`Total Trades: ${trades.length}`, 14, 35);
+      currentY = 35;
     }
     
     // Add summary if requested
@@ -132,7 +136,7 @@ export const exportTradesPDF = async (
       const winRate = ((profitableTrades / trades.length) * 100).toFixed(2);
       
       // Add summary table
-      const summaryTable = autoTable.default(doc, {
+      const summaryResult = autoTable(doc, {
         head: [['Metric', 'Value']],
         body: [
           ['Open Trades', openTrades.toString()],
@@ -149,9 +153,11 @@ export const exportTradesPDF = async (
         headStyles: { fillColor: [66, 139, 202] },
       });
       
-      finalY = summaryTable.finalY || 45;
-    } else {
-      finalY = 45;
+      if (summaryResult && typeof summaryResult === 'object' && 'finalY' in summaryResult) {
+        currentY = summaryResult.finalY;
+      } else {
+        currentY = 45 + 35; // Estimate table height
+      }
     }
     
     // Add trades table
@@ -169,10 +175,10 @@ export const exportTradesPDF = async (
       trade.traderName || 'Unknown',
     ]);
     
-    autoTable.default(doc, {
+    autoTable(doc, {
       head: [['ID', 'Symbol', 'Type', 'Entry Date', 'Exit Date', 'Entry', 'Exit', 'Qty', 'P/L', 'Status', 'Trader']],
       body: tableData,
-      startY: includeSummary ? finalY + 15 : 45,
+      startY: includeSummary ? currentY + 15 : 45,
       theme: 'grid',
       styles: { fontSize: 8 },
       headStyles: { fillColor: [66, 139, 202] },
@@ -216,7 +222,7 @@ export const exportTradesJSON = (
 // Main export function that handles all formats
 export const exportTrades = async (
   trades: Trade[],
-  format: 'csv' | 'excel' | 'pdf' | 'json' = 'csv',
+  format: ExportFormat = 'csv',
   traderName?: string,
   options = { includeMetadata: true, includeSummary: true, includeCharts: false }
 ) => {

@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+import { UserSettings, ThemeOption, OptionType, RoiMethod } from "@/types/settings";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 // Default settings
-const defaultDateRange = {
+const defaultDateRange: DateRange = {
   from: new Date(new Date().getFullYear(), 0, 1), // Jan 1st of current year
   to: new Date(),
 };
@@ -32,9 +33,9 @@ const defaultWidgets = [
   { id: "option-performance", title: "Option Type Performance", enabled: false, position: 5 },
 ];
 
-const defaultUserSettings = {
+const defaultUserSettings: UserSettings = {
   appearance: {
-    theme: "system" as const,
+    theme: "system",
     compactMode: false,
     showWelcomeScreen: true,
   },
@@ -42,10 +43,10 @@ const defaultUserSettings = {
     defaultTrader: "",
     defaultSymbol: "",
     defaultQuantity: 1,
-    defaultOptionType: "call" as const,
+    defaultOptionType: "call",
   },
   calculation: {
-    roiMethod: "simple" as const,
+    roiMethod: "simple",
     includeFees: true,
     defaultFeeAmount: 0.65,
     usePercentageInstead: false,
@@ -53,7 +54,7 @@ const defaultUserSettings = {
   dateRange: defaultDateRange,
   widgets: defaultWidgets,
   exportSettings: {
-    defaultFormat: "csv" as const,
+    defaultFormat: "csv",
     includeMetadata: true,
     includeCharts: false,
     includeSummary: true,
@@ -62,10 +63,10 @@ const defaultUserSettings = {
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [settings, setSettings] = useLocalStorage("userSettings", defaultUserSettings);
+  const [settings, setSettings] = useLocalStorage<UserSettings>("userSettings", defaultUserSettings);
   
   // Local state to track changes before saving
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localSettings, setLocalSettings] = useState<UserSettings>(settings);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ 
     from: settings.dateRange?.from || defaultDateRange.from,
     to: settings.dateRange?.to || defaultDateRange.to
@@ -208,12 +209,12 @@ export default function SettingsPage() {
                 </div>
                 <RadioGroup
                   value={localSettings.appearance.theme}
-                  onValueChange={(value) => 
+                  onValueChange={(value: ThemeOption) => 
                     setLocalSettings(prev => ({
                       ...prev, 
                       appearance: { 
                         ...prev.appearance, 
-                        theme: value as 'light' | 'dark' | 'system' 
+                        theme: value
                       }
                     }))
                   }
@@ -368,12 +369,12 @@ export default function SettingsPage() {
                   <Label>Default Option Type</Label>
                   <RadioGroup
                     value={localSettings.trading.defaultOptionType}
-                    onValueChange={(value) => 
+                    onValueChange={(value: OptionType) => 
                       setLocalSettings(prev => ({
                         ...prev, 
                         trading: { 
                           ...prev.trading, 
-                          defaultOptionType: value as 'call' | 'put' 
+                          defaultOptionType: value
                         }
                       }))
                     }
@@ -413,12 +414,12 @@ export default function SettingsPage() {
                 </div>
                 <RadioGroup
                   value={localSettings.calculation.roiMethod}
-                  onValueChange={(value) => 
+                  onValueChange={(value: RoiMethod) => 
                     setLocalSettings(prev => ({
                       ...prev, 
                       calculation: { 
                         ...prev.calculation, 
-                        roiMethod: value as 'simple' | 'annualized' | 'realizedOnly' 
+                        roiMethod: value
                       }
                     }))
                   }

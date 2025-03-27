@@ -8,9 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { ExportFormat } from "@/types/settings";
 
 interface ExportFormatDialogProps {
-  onExport: (format: 'csv' | 'excel' | 'pdf' | 'json', options: any) => void;
+  onExport: (format: ExportFormat, options: any) => void;
   trigger: React.ReactNode;
   traderName?: string;
 }
@@ -18,7 +19,7 @@ interface ExportFormatDialogProps {
 export function ExportFormatDialog({ onExport, trigger, traderName }: ExportFormatDialogProps) {
   const [settings] = useLocalStorage("userSettings", {
     exportSettings: {
-      defaultFormat: "csv" as const,
+      defaultFormat: "csv" as ExportFormat,
       includeMetadata: true,
       includeCharts: false,
       includeSummary: true,
@@ -26,7 +27,7 @@ export function ExportFormatDialog({ onExport, trigger, traderName }: ExportForm
   });
   
   const [open, setOpen] = useState(false);
-  const [format, setFormat] = useState<'csv' | 'excel' | 'pdf' | 'json'>(
+  const [format, setFormat] = useState<ExportFormat>(
     settings.exportSettings?.defaultFormat || "csv"
   );
   const [includeMetadata, setIncludeMetadata] = useState(
@@ -100,7 +101,7 @@ export function ExportFormatDialog({ onExport, trigger, traderName }: ExportForm
             <Label>Export Format</Label>
             <RadioGroup 
               value={format} 
-              onValueChange={(value) => setFormat(value as 'csv' | 'excel' | 'pdf' | 'json')}
+              onValueChange={(value) => setFormat(value as ExportFormat)}
               className="grid grid-cols-2 gap-4"
             >
               <div className="flex items-center space-x-2">
