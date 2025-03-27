@@ -18,7 +18,7 @@ export function DateFilter({ dateRange, onDateRangeChange, className }: DateFilt
       </CardHeader>
       <CardContent>
         <DateRangeSelector 
-          value={dateRange}
+          dateRange={dateRange}
           onChange={onDateRangeChange}
         />
       </CardContent>
