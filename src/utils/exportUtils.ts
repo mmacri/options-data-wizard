@@ -136,6 +136,7 @@ export const exportTradesPDF = async (
       const winRate = ((profitableTrades / trades.length) * 100).toFixed(2);
       
       // Add summary table
+      // Fix: Explicitly define the return type of autoTable and handle it properly
       const summaryResult = autoTable(doc, {
         head: [['Metric', 'Value']],
         body: [
@@ -153,8 +154,11 @@ export const exportTradesPDF = async (
         headStyles: { fillColor: [66, 139, 202] },
       });
       
+      // Fix: Check if summaryResult exists and has the expected structure
+      // The issue was that we were checking if summaryResult is truthy (which doesn't work for void)
+      // and then trying to access finalY property which might not exist
       if (summaryResult && typeof summaryResult === 'object' && 'finalY' in summaryResult) {
-        currentY = summaryResult.finalY;
+        currentY = summaryResult.finalY as number;
       } else {
         currentY = 45 + 35; // Estimate table height
       }
