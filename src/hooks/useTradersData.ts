@@ -29,6 +29,42 @@ export const useTradersData = (trades: Trade[]) => {
     // Calculate average profit per trade
     const averageProfitPerTrade = traderTrades.length > 0 ? profitLoss / traderTrades.length : 0;
     
+    // Calculate consistency (standard deviation of returns)
+    let consistency = 0;
+    if (traderTrades.length > 1) {
+      const returns = traderTrades.map(trade => 
+        trade.totalInvested ? (trade.profitLoss / trade.totalInvested) * 100 : 0
+      );
+      const meanReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length;
+      const squaredDiffs = returns.map(ret => Math.pow(ret - meanReturn, 2));
+      const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / returns.length;
+      consistency = Math.sqrt(variance);
+    }
+    
+    // Calculate drawdown for this trader
+    let maxDrawdown = 0;
+    let peak = 0;
+    
+    const sortedTrades = [...traderTrades]
+      .filter(trade => trade.exitDate)
+      .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime());
+    
+    let runningPnL = 0;
+    
+    for (const trade of sortedTrades) {
+      runningPnL += trade.profitLoss;
+      
+      if (runningPnL > peak) {
+        peak = runningPnL;
+      }
+      
+      const currentDrawdown = peak > 0 ? ((peak - runningPnL) / peak) * 100 : 0;
+      
+      if (currentDrawdown > maxDrawdown) {
+        maxDrawdown = currentDrawdown;
+      }
+    }
+    
     return {
       name: trader,
       tradeCount: traderTrades.length,
@@ -41,7 +77,9 @@ export const useTradersData = (trades: Trade[]) => {
       winLossRatio,
       averageProfitPerTrade,
       profitableTrades,
-      unprofitableTrades
+      unprofitableTrades,
+      consistency,
+      maxDrawdown
     };
   });
 
@@ -80,9 +118,37 @@ export const useTradersData = (trades: Trade[]) => {
     return performanceData;
   };
 
+  // Calculate performance by option type
+  const getPerformanceByOptionType = (traderName?: string) => {
+    const relevantTrades = traderName 
+      ? trades.filter(trade => trade.traderName === traderName)
+      : trades;
+    
+    const optionTypes = Array.from(new Set(relevantTrades.map(trade => trade.optionType)));
+    
+    return optionTypes.map(optionType => {
+      const optionTypeTrades = relevantTrades.filter(trade => trade.optionType === optionType);
+      const profitLoss = optionTypeTrades.reduce((sum, trade) => sum + trade.profitLoss, 0);
+      const count = optionTypeTrades.length;
+      const winCount = optionTypeTrades.filter(trade => trade.profitLoss > 0).length;
+      const lossCount = optionTypeTrades.filter(trade => trade.profitLoss < 0).length;
+      const winRate = count > 0 ? (winCount / count) * 100 : 0;
+      
+      return {
+        optionType,
+        profitLoss,
+        count,
+        winCount,
+        lossCount,
+        winRate
+      };
+    });
+  };
+
   return {
     uniqueTraders,
     traderStats,
-    getTraderPerformanceOverTime
+    getTraderPerformanceOverTime,
+    getPerformanceByOptionType
   };
 };

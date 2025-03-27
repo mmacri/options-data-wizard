@@ -16,6 +16,8 @@ interface TraderStats {
   averageProfitPerTrade: number;
   profitableTrades: number;
   unprofitableTrades: number;
+  consistency?: number;
+  maxDrawdown?: number;
 }
 
 interface TraderTableProps {
@@ -56,6 +58,7 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
                 <th className="h-12 px-4 text-left align-middle font-medium">Profit/Loss</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">ROI</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Win/Loss</th>
+                <th className="h-12 px-4 text-left align-middle font-medium">Max Drawdown</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
               </tr>
             </thead>
@@ -96,6 +99,9 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
                     </div>
                   </td>
                   <td className="p-4 align-middle">
+                    {trader.maxDrawdown !== undefined ? formatPercent(trader.maxDrawdown) : "-"}
+                  </td>
+                  <td className="p-4 align-middle">
                     <div className="flex gap-2">
                       <button
                         onClick={() => onExportTraderData(trader.name)}
@@ -110,7 +116,7 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
               ))}
               {traderStats.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-4 text-center text-muted-foreground">
+                  <td colSpan={9} className="p-4 text-center text-muted-foreground">
                     No trader data available
                   </td>
                 </tr>

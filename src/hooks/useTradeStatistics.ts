@@ -26,6 +26,62 @@ export const useTradeStatistics = (trades: Trade[]) => {
   // Calculate average profit per trade
   const averageProfitPerTrade = trades.length > 0 ? totalProfitLoss / trades.length : 0;
   
+  // Calculate maximum drawdown (simplified version)
+  let maxDrawdown = 0;
+  let peak = 0;
+  
+  // Sort trades by date for proper drawdown calculation
+  const sortedTrades = [...trades]
+    .filter(trade => trade.exitDate) // Only consider closed trades
+    .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime());
+  
+  let runningPnL = 0;
+  
+  for (const trade of sortedTrades) {
+    runningPnL += trade.profitLoss;
+    
+    // Update peak if we have a new maximum
+    if (runningPnL > peak) {
+      peak = runningPnL;
+    }
+    
+    // Calculate current drawdown
+    const currentDrawdown = peak > 0 ? ((peak - runningPnL) / peak) * 100 : 0;
+    
+    // Update max drawdown if current drawdown is larger
+    if (currentDrawdown > maxDrawdown) {
+      maxDrawdown = currentDrawdown;
+    }
+  }
+  
+  // Calculate winning/losing streaks
+  let currentWinStreak = 0;
+  let currentLoseStreak = 0;
+  let maxWinStreak = 0;
+  let maxLoseStreak = 0;
+  
+  for (const trade of sortedTrades) {
+    if (trade.profitLoss > 0) {
+      // Reset lose streak
+      currentLoseStreak = 0;
+      // Increment win streak
+      currentWinStreak++;
+      // Update max win streak
+      if (currentWinStreak > maxWinStreak) {
+        maxWinStreak = currentWinStreak;
+      }
+    } else if (trade.profitLoss < 0) {
+      // Reset win streak
+      currentWinStreak = 0;
+      // Increment lose streak
+      currentLoseStreak++;
+      // Update max lose streak
+      if (currentLoseStreak > maxLoseStreak) {
+        maxLoseStreak = currentLoseStreak;
+      }
+    }
+  }
+  
   return {
     totalInvested,
     totalProfitLoss,
@@ -36,6 +92,9 @@ export const useTradeStatistics = (trades: Trade[]) => {
     winLossRatio,
     averageProfitPerTrade,
     profitableTrades,
-    unprofitableTrades
+    unprofitableTrades,
+    maxDrawdown,
+    maxWinStreak,
+    maxLoseStreak
   };
 };
