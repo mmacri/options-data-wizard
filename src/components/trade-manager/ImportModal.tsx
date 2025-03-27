@@ -22,11 +22,13 @@ export const ImportModal = ({
 }: ImportModalProps) => {
   if (!isOpen) return null;
 
-  // Example CSV template for users
-  const csvTemplate = `tradeId,underlyingSymbol,optionType,entryDate,entryPrice,exitDate,exitPrice,quantity,totalPremium,profitLoss,status,notes
-T1001,AAPL,Call,2023-06-15,5.75,2023-07-10,8.25,10,5750,2500,Closed,Closed for profit after earnings
-T1002,TSLA,Put,2023-07-01,10.50,2023-07-15,8.50,5,5250,-1000,Closed,Closed for loss
-T1003,MSFT,Call,2023-07-10,3.25,,,,4875,0,Open,Holding through earnings`;
+  // Enhanced CSV template with more fields for comprehensive data import
+  const csvTemplate = `tradeId,traderName,underlyingSymbol,optionType,entryDate,entryPrice,exitDate,exitPrice,quantity,totalPremium,totalInvested,profitLoss,status,notes
+T1001,John Doe,AAPL,Call,2023-06-15,5.75,2023-07-10,8.25,10,5750,5750,2500,Closed,Closed for profit after earnings
+T1002,Jane Smith,TSLA,Put,2023-07-01,10.50,2023-07-15,8.50,5,5250,5250,-1000,Closed,Closed for loss
+T1003,John Doe,MSFT,Call,2023-07-10,3.25,,,15,4875,4875,0,Open,Holding through earnings
+T1004,Jane Smith,AMD,Put,2023-07-15,2.10,,,20,4200,4200,0,Open,Looking for pullback
+T1005,Alex Johnson,NVDA,Call,2023-07-20,15.75,,,3,4725,4725,0,Pending,Waiting for confirmation`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -56,7 +58,7 @@ T1003,MSFT,Call,2023-07-10,3.25,,,,4875,0,Open,Holding through earnings`;
           className="w-full h-40 p-3 border rounded-md mb-4 text-sm font-mono"
           placeholder={csvTemplate}
         />
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-2">
           <button 
             className="text-xs text-muted-foreground hover:text-primary"
             onClick={() => onCsvTextChange(csvTemplate)}
@@ -70,6 +72,27 @@ T1003,MSFT,Call,2023-07-10,3.25,,,,4875,0,Open,Holding through earnings`;
             Clear text
           </button>
         </div>
+        
+        <div className="bg-muted/30 p-3 rounded-md mb-4 text-xs">
+          <h4 className="font-medium mb-1">Field Descriptions:</h4>
+          <ul className="list-disc pl-4 space-y-1">
+            <li><strong>tradeId</strong>: Unique identifier for the trade</li>
+            <li><strong>traderName</strong>: Name of the trader who made the trade</li>
+            <li><strong>underlyingSymbol</strong>: Stock ticker symbol</li>
+            <li><strong>optionType</strong>: "Call" or "Put"</li>
+            <li><strong>entryDate</strong>: Date trade was opened (YYYY-MM-DD)</li>
+            <li><strong>entryPrice</strong>: Option price at entry</li>
+            <li><strong>exitDate</strong>: Date trade was closed (leave blank for open trades)</li>
+            <li><strong>exitPrice</strong>: Option price at exit (leave blank for open trades)</li>
+            <li><strong>quantity</strong>: Number of contracts</li>
+            <li><strong>totalPremium</strong>: Total premium paid (entryPrice × quantity × 100)</li>
+            <li><strong>totalInvested</strong>: Total capital invested</li>
+            <li><strong>profitLoss</strong>: Total profit/loss on the trade</li>
+            <li><strong>status</strong>: "Open", "Closed" or "Pending"</li>
+            <li><strong>notes</strong>: Additional trade information</li>
+          </ul>
+        </div>
+        
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}

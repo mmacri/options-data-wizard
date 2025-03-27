@@ -27,10 +27,16 @@ import {
   Download, 
   FileText, 
   PieChart as PieChartIcon, 
-  UserCircle 
+  UserCircle,
+  TrendingUp,
+  ArrowDown,
+  BarChart as BarChartIcon,
+  Award
 } from "lucide-react";
 import { DataTable } from "@/components/ui-components/DataTable";
 import { cn } from "@/lib/utils";
+import { useTradeStatistics } from "@/hooks/useTradeStatistics";
+import { useTradersData } from "@/hooks/useTradersData";
 
 export default function Reporting() {
   const [trades, setTrades] = useLocalStorage<Trade[]>("trades", []);
@@ -67,49 +73,33 @@ export default function Reporting() {
     return matchesTrader && matchesSymbol && matchesTimeframe;
   });
   
-  const summaryMetrics = calculateSummaryMetrics(filteredTrades);
+  // Use enhanced statistics hooks
+  const stats = useTradeStatistics(filteredTrades);
+  const { traderStats, getTraderPerformanceOverTime, getPerformanceByOptionType } = useTradersData(filteredTrades);
   
-  // Data for performance by option type
-  const optionTypePerformance = () => {
-    const optionTypes = Array.from(new Set(filteredTrades.map(trade => trade.optionType)));
-    return optionTypes.map(type => {
-      const typeTotal = filteredTrades
-        .filter(trade => trade.optionType === type)
-        .reduce((sum, trade) => sum + trade.profitLoss, 0);
-      
-      return {
-        name: type,
-        value: typeTotal
-      };
-    });
-  };
+  // Get performance data based on selections
+  const performanceData = selectedTrader !== "all" 
+    ? getTraderPerformanceOverTime(selectedTrader, selectedTimeframe as any)
+    : undefined;
+  
+  const optionTypePerformance = selectedTrader !== "all"
+    ? getPerformanceByOptionType(selectedTrader)
+    : getPerformanceByOptionType();
   
   // Data for performance by trader
   const traderPerformance = () => {
-    return uniqueTraders.map(trader => {
-      const traderTotal = filteredTrades
-        .filter(trade => trade.traderName === trader)
-        .reduce((sum, trade) => sum + trade.profitLoss, 0);
-      
-      return {
-        name: trader,
-        value: traderTotal
-      };
-    });
+    return traderStats.map(trader => ({
+      name: trader.name,
+      value: trader.profitLoss
+    }));
   };
   
   // Data for trades by status
   const tradesByStatus = () => {
-    const statusCounts = {
-      Open: filteredTrades.filter(trade => trade.status === "Open").length,
-      Closed: filteredTrades.filter(trade => trade.status === "Closed").length,
-      Pending: filteredTrades.filter(trade => trade.status === "Pending").length
-    };
-    
     return [
-      { name: "Open", value: statusCounts.Open, color: "hsl(var(--success))" },
-      { name: "Closed", value: statusCounts.Closed, color: "hsl(var(--destructive))" },
-      { name: "Pending", value: statusCounts.Pending, color: "hsl(var(--warning))" }
+      { name: "Open", value: stats.totalOpenTrades, color: "hsl(var(--success))" },
+      { name: "Closed", value: stats.totalClosedTrades, color: "hsl(var(--destructive))" },
+      { name: "Pending", value: stats.totalPendingTrades, color: "hsl(var(--warning))" }
     ];
   };
   
@@ -216,8 +206,8 @@ export default function Reporting() {
         </div>
       </div>
       
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      {/* Enhanced Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card glass>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -225,38 +215,22 @@ export default function Reporting() {
                 <p className="text-sm text-muted-foreground">Total Profit/Loss</p>
                 <h3 className={cn(
                   "text-2xl font-semibold mt-1",
-                  summaryMetrics.totalProfitLoss > 0 ? "text-success" : 
-                  summaryMetrics.totalProfitLoss < 0 ? "text-destructive" : ""
+                  stats.totalProfitLoss > 0 ? "text-success" : 
+                  stats.totalProfitLoss < 0 ? "text-destructive" : ""
                 )}>
-                  {formatCurrency(summaryMetrics.totalProfitLoss)}
+                  {formatCurrency(stats.totalProfitLoss)}
                 </h3>
               </div>
               <div className={cn(
                 "p-2 rounded-full",
-                summaryMetrics.totalProfitLoss > 0 ? "bg-success/10" : 
-                summaryMetrics.totalProfitLoss < 0 ? "bg-destructive/10" : "bg-muted/10"
+                stats.totalProfitLoss > 0 ? "bg-success/10" : 
+                stats.totalProfitLoss < 0 ? "bg-destructive/10" : "bg-muted/10"
               )}>
                 <BarChart3 className={cn(
                   "h-5 w-5",
-                  summaryMetrics.totalProfitLoss > 0 ? "text-success" : 
-                  summaryMetrics.totalProfitLoss < 0 ? "text-destructive" : "text-muted-foreground"
+                  stats.totalProfitLoss > 0 ? "text-success" : 
+                  stats.totalProfitLoss < 0 ? "text-destructive" : "text-muted-foreground"
                 )} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card glass>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Trade Count</p>
-                <h3 className="text-2xl font-semibold mt-1">
-                  {filteredTrades.length}
-                </h3>
-              </div>
-              <div className="bg-primary/10 p-2 rounded-full">
-                <FileText className="h-5 w-5 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -269,22 +243,54 @@ export default function Reporting() {
                 <p className="text-sm text-muted-foreground">ROI</p>
                 <h3 className={cn(
                   "text-2xl font-semibold mt-1",
-                  summaryMetrics.roi > 0 ? "text-success" : 
-                  summaryMetrics.roi < 0 ? "text-destructive" : ""
+                  stats.roi > 0 ? "text-success" : 
+                  stats.roi < 0 ? "text-destructive" : ""
                 )}>
-                  {summaryMetrics.roi.toFixed(2)}%
+                  {stats.roi.toFixed(2)}%
                 </h3>
               </div>
               <div className={cn(
                 "p-2 rounded-full",
-                summaryMetrics.roi > 0 ? "bg-success/10" : 
-                summaryMetrics.roi < 0 ? "bg-destructive/10" : "bg-muted/10"
+                stats.roi > 0 ? "bg-success/10" : 
+                stats.roi < 0 ? "bg-destructive/10" : "bg-muted/10"
               )}>
-                <Calendar className={cn(
+                <TrendingUp className={cn(
                   "h-5 w-5",
-                  summaryMetrics.roi > 0 ? "text-success" : 
-                  summaryMetrics.roi < 0 ? "text-destructive" : "text-muted-foreground"
+                  stats.roi > 0 ? "text-success" : 
+                  stats.roi < 0 ? "text-destructive" : "text-muted-foreground"
                 )} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card glass>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Win/Loss Ratio</p>
+                <h3 className="text-2xl font-semibold mt-1">
+                  {stats.winLossRatio.toFixed(2)}
+                </h3>
+              </div>
+              <div className="bg-primary/10 p-2 rounded-full">
+                <Award className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card glass>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Max Drawdown</p>
+                <h3 className="text-2xl font-semibold mt-1 text-destructive">
+                  {stats.maxDrawdown.toFixed(2)}%
+                </h3>
+              </div>
+              <div className="bg-destructive/10 p-2 rounded-full">
+                <ArrowDown className="h-5 w-5 text-destructive" />
               </div>
             </div>
           </CardContent>
@@ -306,6 +312,13 @@ export default function Reporting() {
           >
             <UserCircle className="h-4 w-4 mr-2" />
             Traders
+          </TabsTrigger>
+          <TabsTrigger 
+            value="advanced" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            <BarChartIcon className="h-4 w-4 mr-2" />
+            Advanced Metrics
           </TabsTrigger>
           <TabsTrigger 
             value="status" 
@@ -330,9 +343,9 @@ export default function Reporting() {
             </CardHeader>
             <CardContent className="h-[400px]">
               <BarChart 
-                data={optionTypePerformance()} 
-                xKey="name" 
-                yKey="value"
+                data={optionTypePerformance} 
+                xKey="optionType" 
+                yKey="profitLoss"
               />
             </CardContent>
           </Card>
@@ -351,6 +364,109 @@ export default function Reporting() {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="advanced" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card glass>
+              <CardHeader>
+                <CardTitle>Trader Metrics Comparison</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium">Trader</th>
+                        <th className="text-right py-2 font-medium">Win Rate</th>
+                        <th className="text-right py-2 font-medium">Avg Profit</th>
+                        <th className="text-right py-2 font-medium">Max Drawdown</th>
+                        <th className="text-right py-2 font-medium">Consistency</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {traderStats.map(trader => (
+                        <tr key={trader.name} className="border-b border-border/40">
+                          <td className="py-2 font-medium">{trader.name}</td>
+                          <td className="text-right py-2">
+                            {trader.tradeCount > 0 ? 
+                              `${((trader.profitableTrades / trader.tradeCount) * 100).toFixed(1)}%` : 
+                              '0.0%'}
+                          </td>
+                          <td className={cn(
+                            "text-right py-2",
+                            trader.averageProfitPerTrade > 0 ? "text-success" :
+                            trader.averageProfitPerTrade < 0 ? "text-destructive" : ""
+                          )}>
+                            {formatCurrency(trader.averageProfitPerTrade)}
+                          </td>
+                          <td className="text-right py-2 text-destructive">
+                            {trader.maxDrawdown.toFixed(1)}%
+                          </td>
+                          <td className="text-right py-2">
+                            {trader.consistency.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card glass>
+              <CardHeader>
+                <CardTitle>Streaks and Patterns</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Maximum Win Streak</h3>
+                    <div className="flex items-center">
+                      <div className="bg-success/10 p-1.5 rounded">
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      </div>
+                      <div className="ml-2">
+                        <span className="text-xl font-medium text-success">{stats.maxWinStreak}</span>
+                        <span className="text-xs text-muted-foreground ml-1">consecutive wins</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Maximum Loss Streak</h3>
+                    <div className="flex items-center">
+                      <div className="bg-destructive/10 p-1.5 rounded">
+                        <ArrowDown className="h-4 w-4 text-destructive" />
+                      </div>
+                      <div className="ml-2">
+                        <span className="text-xl font-medium text-destructive">{stats.maxLoseStreak}</span>
+                        <span className="text-xs text-muted-foreground ml-1">consecutive losses</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-border/40">
+                    <h3 className="text-sm font-medium mb-2">Profitable vs Unprofitable Trades</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-success/5 p-3 rounded">
+                        <div className="text-center">
+                          <span className="text-xl font-medium text-success">{stats.profitableTrades}</span>
+                          <p className="text-xs text-muted-foreground">Profitable</p>
+                        </div>
+                      </div>
+                      <div className="bg-destructive/5 p-3 rounded">
+                        <div className="text-center">
+                          <span className="text-xl font-medium text-destructive">{stats.unprofitableTrades}</span>
+                          <p className="text-xs text-muted-foreground">Unprofitable</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
         
         <TabsContent value="status" className="mt-4">

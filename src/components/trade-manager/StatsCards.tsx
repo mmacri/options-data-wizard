@@ -1,5 +1,5 @@
 
-import { Wallet, DollarSign, TrendingUp, CircleCheck, Users } from "lucide-react";
+import { Wallet, DollarSign, TrendingUp, CircleCheck, Users, BarChart, Award, ArrowDown } from "lucide-react";
 import { Card } from "@/components/ui-components/Card";
 
 interface StatsCardsProps {
@@ -8,6 +8,10 @@ interface StatsCardsProps {
   totalOpenTrades: number;
   totalClosedTrades: number;
   uniqueTraders: string[];
+  roi?: number;
+  winLossRatio?: number;
+  maxDrawdown?: number;
+  compact?: boolean;
 }
 
 export const StatsCards = ({ 
@@ -15,7 +19,11 @@ export const StatsCards = ({
   totalProfitLoss, 
   totalOpenTrades, 
   totalClosedTrades,
-  uniqueTraders 
+  uniqueTraders,
+  roi,
+  winLossRatio,
+  maxDrawdown,
+  compact = false
 }: StatsCardsProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -24,8 +32,10 @@ export const StatsCards = ({
     }).format(value);
   };
 
+  const calculatedRoi = roi !== undefined ? roi : (totalInvested > 0 ? (totalProfitLoss / totalInvested * 100) : 0);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className={`grid grid-cols-1 ${compact ? 'md:grid-cols-3 lg:grid-cols-6' : 'md:grid-cols-2 lg:grid-cols-4'} gap-4 mb-8`}>
       <Card glass>
         <div className="pt-6 p-6">
           <div className="flex justify-between items-start">
@@ -61,12 +71,12 @@ export const StatsCards = ({
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-muted-foreground">ROI</p>
-              <h3 className={`text-2xl font-semibold mt-1 ${totalProfitLoss > 0 ? 'text-success' : totalProfitLoss < 0 ? 'text-destructive' : ''}`}>
-                {totalInvested > 0 ? (totalProfitLoss / totalInvested * 100).toFixed(2) : "0.00"}%
+              <h3 className={`text-2xl font-semibold mt-1 ${calculatedRoi > 0 ? 'text-success' : calculatedRoi < 0 ? 'text-destructive' : ''}`}>
+                {calculatedRoi.toFixed(2)}%
               </h3>
             </div>
-            <div className={`p-2 rounded-full ${totalProfitLoss > 0 ? 'bg-success/10' : totalProfitLoss < 0 ? 'bg-destructive/10' : 'bg-muted/10'}`}>
-              <TrendingUp className={`h-5 w-5 ${totalProfitLoss > 0 ? 'text-success' : totalProfitLoss < 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+            <div className={`p-2 rounded-full ${calculatedRoi > 0 ? 'bg-success/10' : calculatedRoi < 0 ? 'bg-destructive/10' : 'bg-muted/10'}`}>
+              <TrendingUp className={`h-5 w-5 ${calculatedRoi > 0 ? 'text-success' : calculatedRoi < 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
             </div>
           </div>
         </div>
@@ -90,6 +100,38 @@ export const StatsCards = ({
           </div>
         </div>
       </Card>
+
+      {winLossRatio !== undefined && (
+        <Card glass>
+          <div className="pt-6 p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground">Win/Loss Ratio</p>
+                <h3 className="text-2xl font-semibold mt-1">{winLossRatio.toFixed(2)}</h3>
+              </div>
+              <div className="bg-primary/10 p-2 rounded-full">
+                <Award className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+      
+      {maxDrawdown !== undefined && (
+        <Card glass>
+          <div className="pt-6 p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground">Max Drawdown</p>
+                <h3 className="text-2xl font-semibold mt-1 text-destructive">{maxDrawdown.toFixed(2)}%</h3>
+              </div>
+              <div className="bg-destructive/10 p-2 rounded-full">
+                <ArrowDown className="h-5 w-5 text-destructive" />
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
       
       <Card glass>
         <div className="pt-6 p-6">
