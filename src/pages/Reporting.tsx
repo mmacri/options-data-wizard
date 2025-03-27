@@ -1,22 +1,19 @@
-import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui-components/Card";
+
+import { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-components/Card";
 import { LineChart } from "@/components/charts/LineChart";
-import { PieChart } from "@/components/charts/PieChart";
 import { BarChart } from "@/components/charts/BarChart";
-import { DataTable, Trade } from "@/components/ui-components/DataTable";
-import { TradeModal } from "@/components/ui-components/TradeModal";
-import { 
-  FileText, 
-  Download,
-  Printer,
-  Search,
-  Calendar,
-  Filter,
-  UserCircle,
-  ArrowDown
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { PieChart } from "@/components/charts/PieChart";
 import { useToast } from "@/hooks/use-toast";
+import useLocalStorage from "@/hooks/useLocalStorage";
+import { 
+  Trade, 
+  formatCurrency, 
+  getUniqueTraders, 
+  calculateSummaryMetrics 
+} from "@/components/ui-components/DataTableTypes";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { exportTradesCSV } from "@/utils/csvUtils";
 import { 
   Select,
   SelectContent,
@@ -24,571 +21,367 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { exportTradesCSV } from "@/utils/csvUtils";
-
-const mockTrades: Trade[] = [
-  {
-    id: "1",
-    tradeId: "T1001",
-    underlyingSymbol: "AAPL",
-    optionType: "Call",
-    entryDate: "2023-01-15",
-    entryPrice: 5.75,
-    exitDate: "2023-02-10",
-    exitPrice: 8.25,
-    quantity: 10,
-    totalPremium: 5750,
-    profitLoss: 2500,
-    status: "Closed",
-    notes: "Closed for profit after earnings announcement"
-  },
-  {
-    id: "2",
-    tradeId: "T1002",
-    underlyingSymbol: "TSLA",
-    optionType: "Put",
-    entryDate: "2023-02-01",
-    entryPrice: 10.50,
-    quantity: 5,
-    totalPremium: 5250,
-    profitLoss: -2100,
-    status: "Closed",
-    notes: "Closed for loss after market rally"
-  },
-  {
-    id: "3",
-    tradeId: "T1003",
-    underlyingSymbol: "MSFT",
-    optionType: "Call",
-    entryDate: "2023-03-10",
-    entryPrice: 3.25,
-    quantity: 15,
-    totalPremium: 4875,
-    profitLoss: 1200,
-    status: "Open",
-    notes: "Holding through next earnings"
-  },
-  {
-    id: "4",
-    tradeId: "T1004",
-    underlyingSymbol: "AMD",
-    optionType: "Put",
-    entryDate: "2023-03-15",
-    entryPrice: 2.10,
-    quantity: 20,
-    totalPremium: 4200,
-    profitLoss: 800,
-    status: "Open",
-    notes: "Expecting pullback after recent run"
-  },
-  {
-    id: "5",
-    tradeId: "T1005",
-    underlyingSymbol: "NVDA",
-    optionType: "Call",
-    entryDate: "2023-03-20",
-    entryPrice: 15.75,
-    quantity: 3,
-    totalPremium: 4725,
-    profitLoss: 0,
-    status: "Pending",
-    notes: "Waiting for confirmation before adding to position"
-  }
-];
-
-const mockProfitLossHistory = [
-  { date: "2023-01-01", profitLoss: 0 },
-  { date: "2023-01-15", profitLoss: 500 },
-  { date: "2023-01-31", profitLoss: 1200 },
-  { date: "2023-02-15", profitLoss: 750 },
-  { date: "2023-02-28", profitLoss: 2000 },
-  { date: "2023-03-15", profitLoss: 1500 },
-  { date: "2023-03-31", profitLoss: 2400 }
-];
-
-const getStatusDistribution = (trades: Trade[]) => {
-  const statusCounts = {
-    Open: 0,
-    Closed: 0,
-    Pending: 0
-  };
-  
-  trades.forEach(trade => {
-    statusCounts[trade.status]++;
-  });
-  
-  return [
-    { name: "Open", value: statusCounts.Open, color: "hsl(var(--success))" },
-    { name: "Closed", value: statusCounts.Closed, color: "hsl(var(--destructive))" },
-    { name: "Pending", value: statusCounts.Pending, color: "hsl(var(--warning))" }
-  ];
-};
-
-const getUnderlyingPerformance = (trades: Trade[]) => {
-  const performanceBySymbol: Record<string, number> = {};
-  
-  trades.forEach(trade => {
-    if (!performanceBySymbol[trade.underlyingSymbol]) {
-      performanceBySymbol[trade.underlyingSymbol] = 0;
-    }
-    performanceBySymbol[trade.underlyingSymbol] += trade.profitLoss;
-  });
-  
-  return Object.entries(performanceBySymbol).map(([name, value]) => ({
-    name,
-    value
-  }));
-};
+import { 
+  BarChart3, 
+  Calendar, 
+  Download, 
+  FileText, 
+  PieChart as PieChartIcon, 
+  UserCircle 
+} from "lucide-react";
+import { DataTable } from "@/components/ui-components/DataTable";
+import { cn } from "@/lib/utils";
 
 export default function Reporting() {
-  const [trades, setTrades] = useState<Trade[]>(mockTrades);
-  const [filteredTrades, setFilteredTrades] = useState<Trade[]>(mockTrades);
-  const [selectedTrade, setSelectedTrade] = useState<Trade | undefined>(undefined);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-  const [symbolFilter, setSymbolFilter] = useState<string>("");
-  const [optionTypeFilter, setOptionTypeFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [traderFilter, setTraderFilter] = useState<string>("");
-  
+  const [trades, setTrades] = useLocalStorage<Trade[]>("trades", []);
+  const [activeTab, setActiveTab] = useState("performance");
+  const [selectedTrader, setSelectedTrader] = useState<string>("all");
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>("all");
+  const [selectedSymbol, setSelectedSymbol] = useState<string>("all");
   const { toast } = useToast();
   
-  const uniqueTraders = Array.from(new Set(trades.map(trade => trade.traderName || "Unknown")));
+  const uniqueTraders = getUniqueTraders(trades);
+  const uniqueSymbols = Array.from(new Set(trades.map(trade => trade.underlyingSymbol)));
   
-  const handleViewTrade = (trade: Trade) => {
-    setSelectedTrade(trade);
-    setIsModalOpen(true);
-  };
+  // Filter trades based on selections
+  const filteredTrades = trades.filter(trade => {
+    const matchesTrader = selectedTrader === "all" || trade.traderName === selectedTrader;
+    const matchesSymbol = selectedSymbol === "all" || trade.underlyingSymbol === selectedSymbol;
+    
+    let matchesTimeframe = true;
+    if (selectedTimeframe !== "all") {
+      const tradeDate = new Date(trade.entryDate);
+      const now = new Date();
+      if (selectedTimeframe === "7days") {
+        const sevenDaysAgo = new Date(now.setDate(now.getDate() - 7));
+        matchesTimeframe = tradeDate >= sevenDaysAgo;
+      } else if (selectedTimeframe === "30days") {
+        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+        matchesTimeframe = tradeDate >= thirtyDaysAgo;
+      } else if (selectedTimeframe === "90days") {
+        const ninetyDaysAgo = new Date(now.setDate(now.getDate() - 90));
+        matchesTimeframe = tradeDate >= ninetyDaysAgo;
+      }
+    }
+    
+    return matchesTrader && matchesSymbol && matchesTimeframe;
+  });
   
-  const handleEditTrade = (trade: Trade) => {
-    setSelectedTrade(trade);
-    setIsModalOpen(true);
-  };
+  const summaryMetrics = calculateSummaryMetrics(filteredTrades);
   
-  const handleDeleteTrade = (trade: Trade) => {
-    toast({
-      title: "Action not available",
-      description: "Delete is not available in the reporting view."
+  // Data for performance by option type
+  const optionTypePerformance = () => {
+    const optionTypes = Array.from(new Set(filteredTrades.map(trade => trade.optionType)));
+    return optionTypes.map(type => {
+      const typeTotal = filteredTrades
+        .filter(trade => trade.optionType === type)
+        .reduce((sum, trade) => sum + trade.profitLoss, 0);
+      
+      return {
+        name: type,
+        value: typeTotal
+      };
     });
   };
   
-  const applyFilters = () => {
-    let result = [...trades];
-    
-    if (startDate) {
-      const start = new Date(startDate);
-      result = result.filter(trade => new Date(trade.entryDate) >= start);
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      result = result.filter(trade => new Date(trade.entryDate) <= end);
-    }
-    
-    if (symbolFilter) {
-      result = result.filter(trade => 
-        trade.underlyingSymbol.toLowerCase().includes(symbolFilter.toLowerCase())
-      );
-    }
-    
-    if (optionTypeFilter) {
-      result = result.filter(trade => trade.optionType === optionTypeFilter);
-    }
-    
-    if (statusFilter) {
-      result = result.filter(trade => trade.status === statusFilter);
-    }
-    
-    if (traderFilter) {
-      result = result.filter(trade => trade.traderName === traderFilter);
-    }
-    
-    setFilteredTrades(result);
-    
-    toast({
-      title: "Filters applied",
-      description: `Showing ${result.length} trades.`
+  // Data for performance by trader
+  const traderPerformance = () => {
+    return uniqueTraders.map(trader => {
+      const traderTotal = filteredTrades
+        .filter(trade => trade.traderName === trader)
+        .reduce((sum, trade) => sum + trade.profitLoss, 0);
+      
+      return {
+        name: trader,
+        value: traderTotal
+      };
     });
   };
   
-  const resetFilters = () => {
-    setStartDate("");
-    setEndDate("");
-    setSymbolFilter("");
-    setOptionTypeFilter("");
-    setStatusFilter("");
-    setTraderFilter("");
-    setFilteredTrades(trades);
+  // Data for trades by status
+  const tradesByStatus = () => {
+    const statusCounts = {
+      Open: filteredTrades.filter(trade => trade.status === "Open").length,
+      Closed: filteredTrades.filter(trade => trade.status === "Closed").length,
+      Pending: filteredTrades.filter(trade => trade.status === "Pending").length
+    };
     
-    toast({
-      title: "Filters reset",
-      description: "Showing all trades."
-    });
+    return [
+      { name: "Open", value: statusCounts.Open, color: "hsl(var(--success))" },
+      { name: "Closed", value: statusCounts.Closed, color: "hsl(var(--destructive))" },
+      { name: "Pending", value: statusCounts.Pending, color: "hsl(var(--warning))" }
+    ];
   };
   
-  const exportToCSV = () => {
+  // Handle export to CSV
+  const handleExportReport = () => {
     try {
-      const csvData = exportTradesCSV(filteredTrades, traderFilter || undefined);
+      const csvData = exportTradesCSV(filteredTrades);
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       
+      const filename = `trade_report_${selectedTrader !== "all" ? selectedTrader + "_" : ""}${new Date().toISOString().split('T')[0]}.csv`;
+      
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      const filename = traderFilter ? 
-        `${traderFilter.replace(/\s+/g, '_')}_report.csv` : 
-        'trades_report.csv';
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
       toast({
-        title: "Export complete",
-        description: "Your report has been downloaded."
+        title: "Report exported",
+        description: "Your trade report has been exported to CSV."
       });
     } catch (err) {
       console.error('Export error:', err);
       toast({
         title: "Export failed",
-        description: "There was an error exporting your data.",
+        description: "There was an error exporting your report.",
         variant: "destructive"
       });
     }
   };
   
-  const printToPDF = () => {
-    toast({
-      title: "Print started",
-      description: "Your report is being prepared for printing."
-    });
-    
-    setTimeout(() => {
-      toast({
-        title: "Print ready",
-        description: "Your report is ready to print."
-      });
-    }, 1500);
-  };
-  
-  const totalTrades = filteredTrades.length;
-  const profitableTrades = filteredTrades.filter(trade => trade.profitLoss > 0).length;
-  const totalProfit = filteredTrades.reduce((sum, trade) => {
-    if (trade.profitLoss > 0) return sum + trade.profitLoss;
-    return sum;
-  }, 0);
-  const totalLoss = filteredTrades.reduce((sum, trade) => {
-    if (trade.profitLoss < 0) return sum + Math.abs(trade.profitLoss);
-    return sum;
-  }, 0);
-  const netProfit = filteredTrades.reduce((sum, trade) => sum + trade.profitLoss, 0);
-  const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
-  const avgProfit = totalTrades > 0 ? netProfit / totalTrades : 0;
-  
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(value);
-  };
-  
   return (
     <div className="container mx-auto px-4 py-8 animate-fade-in">
-      <h1 className="text-3xl font-light mb-8">Reporting</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <h1 className="text-3xl font-light">Reporting</h1>
+        
+        <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
+          <button
+            onClick={handleExportReport}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export Report
+          </button>
+        </div>
+      </div>
       
-      <Card glass className="mb-8 animate-slide-up" style={{ animationDelay: "100ms" }}>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Search className="h-5 w-5 mr-2" />
-            Filter Options
-          </CardTitle>
-          <CardDescription>
-            Select criteria to filter your trades report
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="startDate">
-                  <Calendar className="h-4 w-4 inline-block mr-2" />
-                  Start Date
-                </label>
-                <input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="endDate">
-                  <Calendar className="h-4 w-4 inline-block mr-2" />
-                  End Date
-                </label>
-                <input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="symbolFilter">
-                  Underlying Symbol
-                </label>
-                <input
-                  id="symbolFilter"
-                  type="text"
-                  placeholder="Enter symbol..."
-                  value={symbolFilter}
-                  onChange={(e) => setSymbolFilter(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="optionTypeFilter">
-                  Option Type
-                </label>
-                <select
-                  id="optionTypeFilter"
-                  value={optionTypeFilter}
-                  onChange={(e) => setOptionTypeFilter(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">All Types</option>
-                  <option value="Call">Call</option>
-                  <option value="Put">Put</option>
-                  <option value="Bull Call Spread">Bull Call Spread</option>
-                  <option value="Bear Put Spread">Bear Put Spread</option>
-                  <option value="Covered Call">Covered Call</option>
-                  <option value="Iron Condor">Iron Condor</option>
-                  <option value="Butterfly">Butterfly</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="statusFilter">
-                  Status
-                </label>
-                <select
-                  id="statusFilter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Open">Open</option>
-                  <option value="Closed">Closed</option>
-                  <option value="Pending">Pending</option>
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="traderFilter">
-                  <UserCircle className="h-4 w-4 inline-block mr-2" />
-                  Trader
-                </label>
-                <select
-                  id="traderFilter"
-                  value={traderFilter}
-                  onChange={(e) => setTraderFilter(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">All Traders</option>
-                  {uniqueTraders.map(trader => (
-                    <option key={trader} value={trader}>{trader}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="flex space-x-3 mt-6">
-                <button
-                  onClick={applyFilters}
-                  className="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  Apply Filters
-                </button>
-                
-                <button
-                  onClick={resetFilters}
-                  className="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
+      {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card glass className="animate-slide-up" style={{ animationDelay: "200ms" }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-normal">Summary Metrics</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Total Trades:</span>
-              <span className="font-medium">{totalTrades}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Profitable Trades:</span>
-              <span className="font-medium">{profitableTrades}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Win Rate:</span>
-              <span className="font-medium">{winRate.toFixed(1)}%</span>
+        <div>
+          <label className="text-sm font-medium mb-1 block">Trader</label>
+          <Select
+            value={selectedTrader}
+            onValueChange={setSelectedTrader}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Trader" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Traders</SelectItem>
+              {uniqueTraders.map(trader => (
+                <SelectItem key={trader} value={trader}>{trader}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <label className="text-sm font-medium mb-1 block">Symbol</label>
+          <Select
+            value={selectedSymbol}
+            onValueChange={setSelectedSymbol}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Symbol" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Symbols</SelectItem>
+              {uniqueSymbols.map(symbol => (
+                <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <label className="text-sm font-medium mb-1 block">Timeframe</label>
+          <Select
+            value={selectedTimeframe}
+            onValueChange={setSelectedTimeframe}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Timeframe" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="7days">Last 7 Days</SelectItem>
+              <SelectItem value="30days">Last 30 Days</SelectItem>
+              <SelectItem value="90days">Last 90 Days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card glass>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Profit/Loss</p>
+                <h3 className={cn(
+                  "text-2xl font-semibold mt-1",
+                  summaryMetrics.totalProfitLoss > 0 ? "text-success" : 
+                  summaryMetrics.totalProfitLoss < 0 ? "text-destructive" : ""
+                )}>
+                  {formatCurrency(summaryMetrics.totalProfitLoss)}
+                </h3>
+              </div>
+              <div className={cn(
+                "p-2 rounded-full",
+                summaryMetrics.totalProfitLoss > 0 ? "bg-success/10" : 
+                summaryMetrics.totalProfitLoss < 0 ? "bg-destructive/10" : "bg-muted/10"
+              )}>
+                <BarChart3 className={cn(
+                  "h-5 w-5",
+                  summaryMetrics.totalProfitLoss > 0 ? "text-success" : 
+                  summaryMetrics.totalProfitLoss < 0 ? "text-destructive" : "text-muted-foreground"
+                )} />
+              </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card glass className="animate-slide-up" style={{ animationDelay: "300ms" }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-normal">Profit Metrics</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Total Profit:</span>
-              <span className="font-medium text-success">{formatCurrency(totalProfit)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Total Loss:</span>
-              <span className="font-medium text-destructive">{formatCurrency(totalLoss)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Net Profit:</span>
-              <span className={cn(
-                "font-medium",
-                netProfit > 0 ? "text-success" : netProfit < 0 ? "text-destructive" : ""
-              )}>
-                {formatCurrency(netProfit)}
-              </span>
+        <Card glass>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Trade Count</p>
+                <h3 className="text-2xl font-semibold mt-1">
+                  {filteredTrades.length}
+                </h3>
+              </div>
+              <div className="bg-primary/10 p-2 rounded-full">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card glass className="animate-slide-up" style={{ animationDelay: "400ms" }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-normal">Performance Metrics</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Avg. Profit per Trade:</span>
-              <span className={cn(
-                "font-medium",
-                avgProfit > 0 ? "text-success" : avgProfit < 0 ? "text-destructive" : ""
+        <Card glass>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">ROI</p>
+                <h3 className={cn(
+                  "text-2xl font-semibold mt-1",
+                  summaryMetrics.roi > 0 ? "text-success" : 
+                  summaryMetrics.roi < 0 ? "text-destructive" : ""
+                )}>
+                  {summaryMetrics.roi.toFixed(2)}%
+                </h3>
+              </div>
+              <div className={cn(
+                "p-2 rounded-full",
+                summaryMetrics.roi > 0 ? "bg-success/10" : 
+                summaryMetrics.roi < 0 ? "bg-destructive/10" : "bg-muted/10"
               )}>
-                {formatCurrency(avgProfit)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Profit Factor:</span>
-              <span className="font-medium">
-                {totalLoss > 0 ? (totalProfit / totalLoss).toFixed(2) : "∞"}
-              </span>
-            </div>
-            <div className="mt-2">
-              <div className="flex items-center justify-end space-x-2">
-                <button
-                  onClick={exportToCSV}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-9 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  Export
-                </button>
-                <button
-                  onClick={printToPDF}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-9 px-3 bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                >
-                  <Printer className="h-4 w-4 mr-1" />
-                  Print
-                </button>
+                <Calendar className={cn(
+                  "h-5 w-5",
+                  summaryMetrics.roi > 0 ? "text-success" : 
+                  summaryMetrics.roi < 0 ? "text-destructive" : "text-muted-foreground"
+                )} />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        <Card glass className="lg:col-span-2 animate-slide-up" style={{ animationDelay: "500ms" }}>
-          <CardHeader>
-            <CardTitle>Cumulative Profit/Loss</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <LineChart 
-              data={mockProfitLossHistory} 
-              xKey="date" 
-              yKey="profitLoss"
-            />
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="performance" className="mb-8" onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0">
+          <TabsTrigger 
+            value="performance" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Performance
+          </TabsTrigger>
+          <TabsTrigger 
+            value="traders" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            <UserCircle className="h-4 w-4 mr-2" />
+            Traders
+          </TabsTrigger>
+          <TabsTrigger 
+            value="status" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            <PieChartIcon className="h-4 w-4 mr-2" />
+            Trade Status
+          </TabsTrigger>
+          <TabsTrigger 
+            value="data" 
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Raw Data
+          </TabsTrigger>
+        </TabsList>
         
-        <Card glass className="animate-slide-up" style={{ animationDelay: "600ms" }}>
-          <CardHeader>
-            <CardTitle>Trade Status</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <PieChart 
-              data={getStatusDistribution(filteredTrades)}
-            />
-          </CardContent>
-        </Card>
+        <TabsContent value="performance" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Performance by Option Type</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[400px]">
+              <BarChart 
+                data={optionTypePerformance()} 
+                xKey="name" 
+                yKey="value"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
         
-        <Card glass className="lg:col-span-3 animate-slide-up" style={{ animationDelay: "700ms" }}>
-          <CardHeader>
-            <CardTitle>Underlying Performance</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <BarChart 
-              data={getUnderlyingPerformance(filteredTrades)} 
-              xKey="name" 
-              yKey="value"
-            />
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card glass className="animate-slide-up" style={{ animationDelay: "800ms" }}>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <FileText className="h-5 w-5 mr-2" />
-            Trade Report
-          </CardTitle>
-          <CardDescription>
-            Showing {filteredTrades.length} trades based on filter criteria
-            {traderFilter && <span className="ml-1 font-semibold">for {traderFilter}</span>}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable 
-            data={filteredTrades}
-            onView={handleViewTrade}
-            onEdit={handleEditTrade}
-            onDelete={handleDeleteTrade}
-          />
-        </CardContent>
-      </Card>
-      
-      <TradeModal 
-        trade={selectedTrade}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={() => {}}
-        isEditMode={false}
-      />
+        <TabsContent value="traders" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Performance by Trader</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[400px]">
+              <BarChart 
+                data={traderPerformance()} 
+                xKey="name" 
+                yKey="value"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="status" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Trades by Status</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[400px]">
+              <PieChart 
+                data={tradesByStatus()}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="data" className="mt-4">
+          <Card glass>
+            <CardHeader>
+              <CardTitle>Trade Data</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable 
+                data={filteredTrades}
+                onView={() => {}}
+                onEdit={() => {}}
+                onDelete={() => {}}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
-

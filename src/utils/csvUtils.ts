@@ -1,5 +1,5 @@
 
-import { Trade } from "@/components/ui-components/DataTable";
+import { Trade } from "@/components/ui-components/DataTableTypes";
 
 // Convert trades to CSV format with optional trader filtering
 export const exportTradesCSV = (trades: Trade[], traderName?: string): string => {
@@ -59,7 +59,7 @@ export const importTradesCSV = (csvData: string, traderNameFilter?: string): Tra
   const rows = csvData.trim().split('\n');
   const headers = rows[0].split(',');
   
-  const trades = rows.slice(1).map((row, index) => {
+  const trades = rows.slice(1).map((row) => {
     const values = parseCSVRow(row);
     const trade: Record<string, any> = { id: crypto.randomUUID() };
     
@@ -74,12 +74,17 @@ export const importTradesCSV = (csvData: string, traderNameFilter?: string): Tra
       }
     });
     
+    // If we're using a trader filter and there's no trader specified in the CSV, add it
+    if (traderNameFilter && (!trade.traderName || trade.traderName === '')) {
+      trade.traderName = traderNameFilter;
+    }
+    
     return trade as Trade;
   });
   
   // Apply trader filter if provided
   return traderNameFilter 
-    ? trades.filter(trade => trade.traderName === traderNameFilter)
+    ? trades.filter(trade => !trade.traderName || trade.traderName === traderNameFilter)
     : trades;
 };
 
@@ -104,4 +109,17 @@ const parseCSVRow = (row: string): string[] => {
   
   result.push(currentValue);
   return result;
+};
+
+// Helper function to download CSV
+export const downloadCSV = (csvData: string, filename: string) => {
+  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };

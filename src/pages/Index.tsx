@@ -1,14 +1,17 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import useLocalStorage from "@/hooks/useLocalStorage";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [userSettings] = useLocalStorage<any>("userSettings", { defaultView: "dashboard" });
 
   useEffect(() => {
-    // Redirect to dashboard
-    navigate("/dashboard");
-  }, [navigate]);
+    // Redirect to default view based on user settings
+    const defaultPath = `/${userSettings.defaultView || "dashboard"}`;
+    navigate(defaultPath);
+  }, [navigate, userSettings]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
