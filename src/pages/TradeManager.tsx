@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
@@ -10,8 +9,11 @@ import { StatsCards } from "@/components/trade-manager/StatsCards";
 import { ActionButtons } from "@/components/trade-manager/ActionButtons";
 import { ImportModal } from "@/components/trade-manager/ImportModal";
 import { TabContent } from "@/components/trade-manager/TabContent";
+import { DateFilter } from "@/components/ui-components/DateFilter";
+import { TraderFilter } from "@/components/ui-components/TraderFilter";
 import { useTradersData } from "@/hooks/useTradersData";
 import { useTradeStatistics } from "@/hooks/useTradeStatistics";
+import { DateRange } from "react-day-picker";
 
 // Mock data imports
 import { mockTrades, mockSummaryData, mockOpenPositions, mockPerformanceMetrics } from "@/utils/mockData";
@@ -35,11 +37,71 @@ export default function TradeManager() {
   const [csvImportText, setCsvImportText] = useState("");
   const [selectedTraderImport, setSelectedTraderImport] = useState<string | null>(null);
   
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [traderFilter, setTraderFilter] = useState<string>("all");
+  
   const { toast } = useToast();
   
   // Get trader data and statistics
   const { uniqueTraders, traderStats } = useTradersData(trades);
-  const { totalInvested, totalProfitLoss, totalOpenTrades, totalClosedTrades } = useTradeStatistics(trades);
+  
+  // Filter trades based on date range and trader
+  const filteredTrades = trades.filter(trade => {
+    const matchesTrader = traderFilter === "all" || trade.traderName === traderFilter;
+    let matchesDateRange = true;
+    
+    if (dateRange?.from) {
+      const tradeDate = new Date(trade.entryDate);
+      matchesDateRange = tradeDate >= dateRange.from;
+      
+      if (dateRange.to) {
+        matchesDateRange = matchesDateRange && tradeDate <= dateRange.to;
+      }
+    }
+    
+    return matchesTrader && matchesDateRange;
+  });
+  
+  // Apply the same filters to other data arrays
+  const filteredSummaryData = summaryData.filter(item => {
+    const matchesTrader = traderFilter === "all" || item.traderName === traderFilter;
+    let matchesDateRange = true;
+    
+    if (dateRange?.from && item.entryDate) {
+      const entryDate = new Date(item.entryDate);
+      matchesDateRange = entryDate >= dateRange.from;
+      
+      if (dateRange.to) {
+        matchesDateRange = matchesDateRange && entryDate <= dateRange.to;
+      }
+    }
+    
+    return matchesTrader && matchesDateRange;
+  });
+  
+  const filteredOpenPositions = openPositions.filter(position => {
+    const matchesTrader = traderFilter === "all" || position.traderName === traderFilter;
+    let matchesDateRange = true;
+    
+    if (dateRange?.from && position.entryDate) {
+      const entryDate = new Date(position.entryDate);
+      matchesDateRange = entryDate >= dateRange.from;
+      
+      if (dateRange.to) {
+        matchesDateRange = matchesDateRange && entryDate <= dateRange.to;
+      }
+    }
+    
+    return matchesTrader && matchesDateRange;
+  });
+  
+  const filteredPerformanceMetrics = performanceMetrics.filter(metric => {
+    const matchesTrader = traderFilter === "all" || metric.traderName === traderFilter;
+    // Performance metrics typically don't have dates so we'll just filter by trader
+    return matchesTrader;
+  });
+  
+  const { totalInvested, totalProfitLoss, totalOpenTrades, totalClosedTrades } = useTradeStatistics(filteredTrades);
   
   // Handler functions
   const handleViewTrade = (trade: Trade) => {
@@ -280,6 +342,19 @@ export default function TradeManager() {
         />
       </div>
       
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <DateFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
+        <TraderFilter
+          traderFilter={traderFilter}
+          setTraderFilter={setTraderFilter}
+          uniqueTraders={uniqueTraders}
+        />
+      </div>
+      
       <StatsCards 
         totalInvested={totalInvested}
         totalProfitLoss={totalProfitLoss}
@@ -324,10 +399,10 @@ export default function TradeManager() {
         
         <TabContent 
           activeTab={activeTab}
-          trades={trades}
-          summaryData={summaryData}
-          openPositions={openPositions}
-          performanceMetrics={performanceMetrics}
+          trades={filteredTrades}
+          summaryData={filteredSummaryData}
+          openPositions={filteredOpenPositions}
+          performanceMetrics={filteredPerformanceMetrics}
           traderStats={traderStats}
           onViewTrade={handleViewTrade}
           onEditTrade={handleEditTrade}

@@ -1,4 +1,3 @@
-
 import { Trade } from "@/components/ui-components/DataTableTypes";
 import { exportTradesCSV } from "./csvUtils";
 import { ExportFormat } from "@/types/settings";
@@ -135,9 +134,11 @@ export const exportTradesPDF = async (
       const unprofitableTrades = trades.filter(t => t.profitLoss < 0).length;
       const winRate = ((profitableTrades / trades.length) * 100).toFixed(2);
       
-      // Add summary table
-      // Fix: Explicitly define the return type of autoTable and handle it properly
-      const summaryResult = autoTable(doc, {
+      // Fix: autoTable returns void in latest versions, use a variable to track Y position instead
+      const summaryStartY = 45;
+      
+      // Add summary table without relying on a return value
+      autoTable(doc, {
         head: [['Metric', 'Value']],
         body: [
           ['Open Trades', openTrades.toString()],
@@ -148,20 +149,15 @@ export const exportTradesPDF = async (
           ['Unprofitable Trades', unprofitableTrades.toString()],
           ['Win Rate', `${winRate}%`],
         ],
-        startY: 45,
+        startY: summaryStartY,
         theme: 'grid',
         styles: { fontSize: 10 },
         headStyles: { fillColor: [66, 139, 202] },
       });
       
-      // Fix: Check if summaryResult exists and has the expected structure
-      // The issue was that we were checking if summaryResult is truthy (which doesn't work for void)
-      // and then trying to access finalY property which might not exist
-      if (summaryResult && typeof summaryResult === 'object' && 'finalY' in summaryResult) {
-        currentY = summaryResult.finalY as number;
-      } else {
-        currentY = 45 + 35; // Estimate table height
-      }
+      // Use an estimated height for the summary table based on number of rows
+      // 7 rows plus header, roughly 10 points per row
+      currentY = summaryStartY + ((7 + 1) * 10);
     }
     
     // Add trades table

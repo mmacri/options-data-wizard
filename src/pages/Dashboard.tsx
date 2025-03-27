@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-components/Card";
 import { LineChart } from "@/components/charts/LineChart";
@@ -6,13 +5,15 @@ import { PieChart } from "@/components/charts/PieChart";
 import { BarChart } from "@/components/charts/BarChart";
 import { DataTable, Trade } from "@/components/ui-components/DataTable";
 import { TradeModal } from "@/components/ui-components/TradeModal";
+import { DateFilter } from "@/components/ui-components/DateFilter";
+import { TraderFilter } from "@/components/ui-components/TraderFilter";
+import { DateRange } from "react-day-picker";
 import { ArrowUp, ArrowDown, DollarSign, FileText, AlertCircle, Award, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTradeStatistics } from "@/hooks/useTradeStatistics";
 import { StatsCards } from "@/components/trade-manager/StatsCards";
 import { useTradersData } from "@/hooks/useTradersData"; 
 
-// Mock data for demonstration
 const mockTrades: Trade[] = [
   {
     id: "1",
@@ -95,7 +96,6 @@ const mockTrades: Trade[] = [
   }
 ];
 
-// Historical profit/loss data for the line chart
 const mockProfitLossHistory = [
   { date: "2023-01-01", profitLoss: 0 },
   { date: "2023-01-15", profitLoss: 500 },
@@ -111,13 +111,29 @@ export default function Dashboard() {
   const [selectedTrade, setSelectedTrade] = useState<Trade | undefined>(undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [traderFilter, setTraderFilter] = useState<string>("all");
   const { toast } = useToast();
   
-  // Use the enhanced trade statistics
-  const stats = useTradeStatistics(trades);
-  const { uniqueTraders, traderStats } = useTradersData(trades);
+  const filteredTrades = trades.filter(trade => {
+    const matchesTrader = traderFilter === "all" || trade.traderName === traderFilter;
+    let matchesDateRange = true;
+    
+    if (dateRange?.from) {
+      const tradeDate = new Date(trade.entryDate);
+      matchesDateRange = tradeDate >= dateRange.from;
+      
+      if (dateRange.to) {
+        matchesDateRange = matchesDateRange && tradeDate <= dateRange.to;
+      }
+    }
+    
+    return matchesTrader && matchesDateRange;
+  });
   
-  // Get status distribution for pie chart
+  const stats = useTradeStatistics(filteredTrades);
+  const { uniqueTraders, traderStats } = useTradersData(filteredTrades);
+  
   const getStatusDistribution = () => {
     return [
       { name: "Open", value: stats.totalOpenTrades, color: "hsl(var(--success))" },
@@ -126,7 +142,6 @@ export default function Dashboard() {
     ];
   };
 
-  // Option type data for bar chart
   const getOptionTypeDistribution = () => {
     const result = [
       { name: "Call", value: 0 },
@@ -144,7 +159,7 @@ export default function Dashboard() {
     return result;
   };
   
-  const recentTrades = [...trades].sort((a, b) => {
+  const recentTrades = [...filteredTrades].sort((a, b) => {
     return new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime();
   }).slice(0, 5);
   
@@ -185,7 +200,18 @@ export default function Dashboard() {
     <div className="container mx-auto px-4 py-8 animate-fade-in">
       <h1 className="text-3xl font-light mb-8">Dashboard</h1>
       
-      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <DateFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
+        <TraderFilter
+          traderFilter={traderFilter}
+          setTraderFilter={setTraderFilter}
+          uniqueTraders={uniqueTraders}
+        />
+      </div>
+      
       <StatsCards 
         totalInvested={stats.totalInvested}
         totalProfitLoss={stats.totalProfitLoss}
@@ -194,7 +220,6 @@ export default function Dashboard() {
         uniqueTraders={uniqueTraders}
       />
       
-      {/* Additional Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <Card glass className="animate-slide-up" style={{ animationDelay: "600ms" }}>
           <CardHeader className="pb-2">
@@ -271,7 +296,6 @@ export default function Dashboard() {
         </Card>
       </div>
       
-      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         <Card glass className="lg:col-span-2 animate-slide-up" style={{ animationDelay: "600ms" }}>
           <CardHeader>
@@ -311,7 +335,6 @@ export default function Dashboard() {
         </Card>
       </div>
       
-      {/* Recent Trades Table */}
       <Card glass className="animate-slide-up" style={{ animationDelay: "900ms" }}>
         <CardHeader>
           <CardTitle>Recent Trades</CardTitle>
@@ -326,7 +349,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
       
-      {/* Trade Details Modal */}
       <TradeModal 
         trade={selectedTrade}
         isOpen={isModalOpen}

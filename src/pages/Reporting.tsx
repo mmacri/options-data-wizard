@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-components/Card";
 import { LineChart } from "@/components/charts/LineChart";
@@ -14,13 +13,9 @@ import {
 } from "@/components/ui-components/DataTableTypes";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { exportTradesCSV } from "@/utils/csvUtils";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { DateFilter } from "@/components/ui-components/DateFilter";
+import { TraderFilter } from "@/components/ui-components/TraderFilter";
+import { DateRange } from "react-day-picker";
 import { 
   BarChart3, 
   Calendar, 
@@ -41,8 +36,8 @@ import { useTradersData } from "@/hooks/useTradersData";
 export default function Reporting() {
   const [trades, setTrades] = useLocalStorage<Trade[]>("trades", []);
   const [activeTab, setActiveTab] = useState("performance");
-  const [selectedTrader, setSelectedTrader] = useState<string>("all");
-  const [selectedTimeframe, setSelectedTimeframe] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [traderFilter, setTraderFilter] = useState<string>("all");
   const [selectedSymbol, setSelectedSymbol] = useState<string>("all");
   const { toast } = useToast();
   
@@ -51,26 +46,20 @@ export default function Reporting() {
   
   // Filter trades based on selections
   const filteredTrades = trades.filter(trade => {
-    const matchesTrader = selectedTrader === "all" || trade.traderName === selectedTrader;
+    const matchesTrader = traderFilter === "all" || trade.traderName === traderFilter;
     const matchesSymbol = selectedSymbol === "all" || trade.underlyingSymbol === selectedSymbol;
     
-    let matchesTimeframe = true;
-    if (selectedTimeframe !== "all") {
+    let matchesDateRange = true;
+    if (dateRange?.from) {
       const tradeDate = new Date(trade.entryDate);
-      const now = new Date();
-      if (selectedTimeframe === "7days") {
-        const sevenDaysAgo = new Date(now.setDate(now.getDate() - 7));
-        matchesTimeframe = tradeDate >= sevenDaysAgo;
-      } else if (selectedTimeframe === "30days") {
-        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-        matchesTimeframe = tradeDate >= thirtyDaysAgo;
-      } else if (selectedTimeframe === "90days") {
-        const ninetyDaysAgo = new Date(now.setDate(now.getDate() - 90));
-        matchesTimeframe = tradeDate >= ninetyDaysAgo;
+      matchesDateRange = tradeDate >= dateRange.from;
+      
+      if (dateRange.to) {
+        matchesDateRange = matchesDateRange && tradeDate <= dateRange.to;
       }
     }
     
-    return matchesTrader && matchesSymbol && matchesTimeframe;
+    return matchesTrader && matchesSymbol && matchesDateRange;
   });
   
   // Use enhanced statistics hooks
@@ -151,23 +140,11 @@ export default function Reporting() {
       
       {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div>
-          <label className="text-sm font-medium mb-1 block">Trader</label>
-          <Select
-            value={selectedTrader}
-            onValueChange={setSelectedTrader}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Trader" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Traders</SelectItem>
-              {uniqueTraders.map(trader => (
-                <SelectItem key={trader} value={trader}>{trader}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <TraderFilter
+          traderFilter={traderFilter}
+          setTraderFilter={setTraderFilter}
+          uniqueTraders={uniqueTraders}
+        />
         
         <div>
           <label className="text-sm font-medium mb-1 block">Symbol</label>
@@ -187,23 +164,10 @@ export default function Reporting() {
           </Select>
         </div>
         
-        <div>
-          <label className="text-sm font-medium mb-1 block">Timeframe</label>
-          <Select
-            value={selectedTimeframe}
-            onValueChange={setSelectedTimeframe}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Timeframe" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="7days">Last 7 Days</SelectItem>
-              <SelectItem value="30days">Last 30 Days</SelectItem>
-              <SelectItem value="90days">Last 90 Days</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <DateFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
       </div>
       
       {/* Enhanced Summary Stats */}
