@@ -17,9 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import useLocalStorage from "@/hooks/useLocalStorage";
-import { DateRangeSelector } from "@/components/ui-components/DateRangeSelector";
 import { ThemeOption, ExportFormat, OptionType, RoiMethod, UserSettings } from "@/types/settings";
-import { getUniqueTraders } from "@/components/ui-components/DataTableTypes";
 import { useTradersData } from "@/hooks/useTradersData";
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -90,7 +88,7 @@ export default function Settings() {
   useEffect(() => {
     setSettings(prev => ({
       ...prev,
-      dateRange: dateRange || {},
+      dateRange: dateRange || { from: undefined, to: undefined } as DateRange,
     }));
   }, [dateRange, setSettings]);
   

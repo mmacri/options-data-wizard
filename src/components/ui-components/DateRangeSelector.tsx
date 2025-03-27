@@ -8,11 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import useLocalStorage from "@/hooks/useLocalStorage";
-
-type DateRange = {
-  from: Date | undefined;
-  to: Date | undefined;
-};
+import { DateRange } from "react-day-picker";
 
 type DateRangeOption = {
   value: string;
@@ -21,17 +17,14 @@ type DateRangeOption = {
 };
 
 interface DateRangeSelectorProps {
-  onRangeChange: (fromDate: Date | undefined, toDate: Date | undefined) => void;
+  dateRange: DateRange | undefined;
+  onChange: (range: DateRange | undefined) => void;
+  className?: string;
 }
 
-export function DateRangeSelector({ onRangeChange }: DateRangeSelectorProps) {
+export function DateRangeSelector({ dateRange, onChange, className }: DateRangeSelectorProps) {
   const [settings] = useLocalStorage("userSettings", {
     defaultDateRange: "30days" as string
-  });
-  
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: undefined,
-    to: undefined,
   });
   
   const [selectedPreset, setSelectedPreset] = useState<string>(
@@ -50,7 +43,9 @@ export function DateRangeSelector({ onRangeChange }: DateRangeSelectorProps) {
 
   useEffect(() => {
     // Set initial date range based on default setting
-    handlePresetChange(selectedPreset);
+    if (!dateRange?.from && !dateRange?.to) {
+      handlePresetChange(selectedPreset);
+    }
   }, []);
 
   const handlePresetChange = (value: string) => {
@@ -63,8 +58,7 @@ export function DateRangeSelector({ onRangeChange }: DateRangeSelectorProps) {
     
     if (value === "all") {
       // If "all time" is selected, clear the date range
-      setDateRange({ from: undefined, to: undefined });
-      onRangeChange(undefined, undefined);
+      onChange(undefined);
       return;
     }
     
@@ -74,23 +68,20 @@ export function DateRangeSelector({ onRangeChange }: DateRangeSelectorProps) {
       const fromDate = new Date();
       fromDate.setDate(today.getDate() - option.days);
       
-      setDateRange({ from: fromDate, to: today });
-      onRangeChange(fromDate, today);
+      onChange({ from: fromDate, to: today });
     }
   };
 
-  const handleDateRangeChange = (range: DateRange) => {
-    setDateRange(range);
-    
-    if (range.from || range.to) {
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    if (range?.from || range?.to) {
       setSelectedPreset("custom");
     }
     
-    onRangeChange(range.from, range.to);
+    onChange(range);
   };
 
   return (
-    <div className="flex flex-col sm:flex-row gap-2 w-full">
+    <div className={cn("flex flex-col sm:flex-row gap-2 w-full", className)}>
       <Select value={selectedPreset} onValueChange={handlePresetChange}>
         <SelectTrigger className="w-full sm:w-[180px]">
           <SelectValue placeholder="Select time range" />
@@ -111,11 +102,11 @@ export function DateRangeSelector({ onRangeChange }: DateRangeSelectorProps) {
             variant={"outline"}
             className={cn(
               "w-full sm:w-[240px] justify-start text-left font-normal",
-              !dateRange.from && !dateRange.to && "text-muted-foreground"
+              !dateRange?.from && !dateRange?.to && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {dateRange.from ? (
+            {dateRange?.from ? (
               dateRange.to ? (
                 <>
                   {format(dateRange.from, "MMM d, yyyy")} -{" "}
@@ -133,7 +124,7 @@ export function DateRangeSelector({ onRangeChange }: DateRangeSelectorProps) {
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={dateRange.from}
+            defaultMonth={dateRange?.from}
             selected={dateRange}
             onSelect={handleDateRangeChange}
             numberOfMonths={2}
