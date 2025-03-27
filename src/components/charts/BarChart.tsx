@@ -10,6 +10,8 @@ interface BarChartProps {
   title?: string;
   className?: string;
   color?: string;
+  labelFormatter?: (value: any) => string;
+  valueColor?: (value: any) => string;
 }
 
 export function BarChart({ 
@@ -18,7 +20,9 @@ export function BarChart({
   yKey, 
   title, 
   className,
-  color = "hsl(var(--primary))"
+  color = "hsl(var(--primary))",
+  labelFormatter,
+  valueColor
 }: BarChartProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [animatedData, setAnimatedData] = useState<any[]>([]);
@@ -50,6 +54,10 @@ export function BarChart({
   }, [data, xKey, yKey]);
   
   const formatValue = (value: number) => {
+    if (labelFormatter) {
+      return labelFormatter(value);
+    }
+    
     if (Math.abs(value) >= 1000) {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -66,6 +74,9 @@ export function BarChart({
   };
   
   const getBarFill = (value: number) => {
+    if (valueColor) {
+      return valueColor(value);
+    }
     return value >= 0 ? color : "hsl(var(--destructive))";
   };
   
