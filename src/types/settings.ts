@@ -3,7 +3,7 @@ import { DateRange } from "react-day-picker";
 
 export type ThemeOption = "light" | "dark" | "system";
 export type OptionType = "call" | "put";
-export type RoiMethod = "simple" | "annualized" | "realizedOnly";
+export type RoiMethod = "simple" | "annualized" | "withFees";
 export type ExportFormat = "csv" | "excel" | "pdf" | "json";
 
 export interface WidgetSettings {
@@ -39,4 +39,10 @@ export interface UserSettings {
     includeCharts: boolean;
     includeSummary: boolean;
   };
+}
+
+export interface ExportOptions {
+  includeMetadata: boolean;
+  includeCharts: boolean;
+  includeSummary: boolean;
 }

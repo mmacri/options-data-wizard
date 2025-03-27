@@ -1,11 +1,11 @@
 
-import React from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { TradingSettings } from "./TradingSettings";
 import { CalculationSettings } from "./CalculationSettings";
 import { ExportSettings } from "./ExportSettings";
 import { WidgetSettings } from "./WidgetSettings";
+import { BackupRestoreSettings } from "./BackupRestoreSettings";
 import { ThemeOption, OptionType, RoiMethod } from "@/types/settings";
 
 interface SettingsTabsProps {
@@ -65,44 +65,20 @@ export function SettingsTabs({
   onRoiMethodChange,
   onIncludeFeesChange,
   onDefaultFeeAmountChange,
-  onUsePercentageInsteadChange
+  onUsePercentageInsteadChange,
 }: SettingsTabsProps) {
   return (
-    <Tabs defaultValue="appearance" className="mb-8">
-      <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0">
-        <TabsTrigger 
-          value="appearance" 
-          className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
-        >
-          Appearance
-        </TabsTrigger>
-        <TabsTrigger 
-          value="trading" 
-          className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
-        >
-          Trading
-        </TabsTrigger>
-        <TabsTrigger 
-          value="calculation" 
-          className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
-        >
-          Calculation
-        </TabsTrigger>
-        <TabsTrigger 
-          value="export" 
-          className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
-        >
-          Export
-        </TabsTrigger>
-        <TabsTrigger 
-          value="widgets" 
-          className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none h-10 px-4"
-        >
-          Widgets
-        </TabsTrigger>
+    <Tabs defaultValue="appearance" className="w-full">
+      <TabsList className="grid grid-cols-6 mb-8">
+        <TabsTrigger value="appearance">Appearance</TabsTrigger>
+        <TabsTrigger value="trading">Trading</TabsTrigger>
+        <TabsTrigger value="calculation">Calculation</TabsTrigger>
+        <TabsTrigger value="export">Export</TabsTrigger>
+        <TabsTrigger value="widgets">Widgets</TabsTrigger>
+        <TabsTrigger value="backup">Backup</TabsTrigger>
       </TabsList>
       
-      <TabsContent value="appearance" className="mt-4">
+      <TabsContent value="appearance" className="space-y-6">
         <AppearanceSettings 
           theme={theme}
           compactMode={compactMode}
@@ -113,7 +89,7 @@ export function SettingsTabs({
         />
       </TabsContent>
       
-      <TabsContent value="trading" className="mt-4">
+      <TabsContent value="trading" className="space-y-6">
         <TradingSettings 
           defaultTrader={defaultTrader}
           defaultSymbol={defaultSymbol}
@@ -126,7 +102,7 @@ export function SettingsTabs({
         />
       </TabsContent>
       
-      <TabsContent value="calculation" className="mt-4">
+      <TabsContent value="calculation" className="space-y-6">
         <CalculationSettings 
           roiMethod={roiMethod}
           includeFees={includeFees}
@@ -139,12 +115,16 @@ export function SettingsTabs({
         />
       </TabsContent>
       
-      <TabsContent value="export" className="mt-4">
+      <TabsContent value="export" className="space-y-6">
         <ExportSettings />
       </TabsContent>
       
-      <TabsContent value="widgets" className="mt-4">
+      <TabsContent value="widgets" className="space-y-6">
         <WidgetSettings />
+      </TabsContent>
+      
+      <TabsContent value="backup" className="space-y-6">
+        <BackupRestoreSettings />
       </TabsContent>
     </Tabs>
   );

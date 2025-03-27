@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   dateRange: {
     from: undefined,
     to: undefined
-  } as DateRange,
+  },
   widgets: [
     { id: "recent-trades", title: "Recent Trades", enabled: true, position: 0 },
     { id: "profit-loss", title: "Profit/Loss Chart", enabled: true, position: 1 },
@@ -53,7 +53,7 @@ export const useSettingsManager = () => {
   useEffect(() => {
     setSettings(prev => ({
       ...prev,
-      dateRange: dateRange || { from: undefined, to: undefined } as DateRange,
+      dateRange: dateRange || { from: undefined, to: undefined },
     }));
   }, [dateRange, setSettings]);
 
