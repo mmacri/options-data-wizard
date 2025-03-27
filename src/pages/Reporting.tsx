@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-components/Card";
 import { LineChart } from "@/components/charts/LineChart";
@@ -16,6 +17,13 @@ import { exportTradesCSV } from "@/utils/csvUtils";
 import { DateFilter } from "@/components/ui-components/DateFilter";
 import { TraderFilter } from "@/components/ui-components/TraderFilter";
 import { DateRange } from "react-day-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   BarChart3, 
   Calendar, 
@@ -38,6 +46,8 @@ export default function Reporting() {
   const [activeTab, setActiveTab] = useState("performance");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [traderFilter, setTraderFilter] = useState<string>("all");
+  const [selectedTrader, setSelectedTrader] = useState<string>("all");
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>("all");
   const [selectedSymbol, setSelectedSymbol] = useState<string>("all");
   const { toast } = useToast();
   

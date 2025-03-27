@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   },
   trading: {
     defaultTrader: "",
-    defaultSymbol: "SPY",
+    defaultSymbol: "",
     defaultQuantity: 1,
     defaultOptionType: "call" as OptionType,
   },
@@ -40,7 +40,10 @@ const DEFAULT_SETTINGS: UserSettings = {
     defaultFeeAmount: 0.65,
     usePercentageInstead: false,
   },
-  dateRange: {},
+  dateRange: {
+    from: undefined,
+    to: undefined
+  } as DateRange,
   widgets: [
     { id: "recent-trades", title: "Recent Trades", enabled: true, position: 0 },
     { id: "profit-loss", title: "Profit/Loss Chart", enabled: true, position: 1 },
@@ -198,6 +201,16 @@ export default function Settings() {
         ...prev.calculation,
         usePercentageInstead: checked,
       },
+    }));
+  };
+  
+  const clearDateFilter = () => {
+    setSettings(prev => ({
+      ...prev,
+      dateRange: {
+        from: undefined,
+        to: undefined
+      } as DateRange
     }));
   };
   

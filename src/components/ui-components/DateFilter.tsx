@@ -50,7 +50,7 @@ export function DateFilter({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <DateRangeSelector
-            selectedRange={dateRange}
+            dateRange={dateRange}
             onChange={onDateRangeChange}
             className="pointer-events-auto"
           />
