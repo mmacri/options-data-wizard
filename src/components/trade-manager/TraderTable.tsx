@@ -7,8 +7,15 @@ interface TraderStats {
   name: string;
   tradeCount: number;
   openTrades: number;
+  closedTrades: number;
+  pendingTrades: number;
   profitLoss: number;
   invested: number;
+  roi: number;
+  winLossRatio: number;
+  averageProfitPerTrade: number;
+  profitableTrades: number;
+  unprofitableTrades: number;
 }
 
 interface TraderTableProps {
@@ -24,6 +31,14 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
     }).format(value);
   };
 
+  const formatPercent = (value: number) => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  const formatRatio = (value: number) => {
+    return value.toFixed(2);
+  };
+
   return (
     <Card glass>
       <CardHeader>
@@ -36,10 +51,11 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
               <tr>
                 <th className="h-12 px-4 text-left align-middle font-medium">Trader</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Total Trades</th>
-                <th className="h-12 px-4 text-left align-middle font-medium">Open Trades</th>
+                <th className="h-12 px-4 text-left align-middle font-medium">Open/Closed</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Invested</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Profit/Loss</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">ROI</th>
+                <th className="h-12 px-4 text-left align-middle font-medium">Win/Loss</th>
                 <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
               </tr>
             </thead>
@@ -54,7 +70,10 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
                 >
                   <td className="p-4 align-middle font-medium">{trader.name}</td>
                   <td className="p-4 align-middle">{trader.tradeCount}</td>
-                  <td className="p-4 align-middle">{trader.openTrades}</td>
+                  <td className="p-4 align-middle">
+                    {trader.openTrades}/{trader.closedTrades}
+                    {trader.pendingTrades > 0 && <span className="text-xs text-muted-foreground ml-1">({trader.pendingTrades} pending)</span>}
+                  </td>
                   <td className="p-4 align-middle">{formatCurrency(trader.invested)}</td>
                   <td className={cn(
                     "p-4 align-middle font-medium",
@@ -64,9 +83,17 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
                   </td>
                   <td className={cn(
                     "p-4 align-middle font-medium",
-                    trader.profitLoss > 0 ? "text-success" : trader.profitLoss < 0 ? "text-destructive" : ""
+                    trader.roi > 0 ? "text-success" : trader.roi < 0 ? "text-destructive" : ""
                   )}>
-                    {trader.invested > 0 ? (trader.profitLoss / trader.invested * 100).toFixed(2) : "0.00"}%
+                    {formatPercent(trader.roi)}
+                  </td>
+                  <td className="p-4 align-middle">
+                    <div className="flex flex-col">
+                      <span className="font-medium">{formatRatio(trader.winLossRatio)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {trader.profitableTrades}/{trader.unprofitableTrades}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-4 align-middle">
                     <div className="flex gap-2">
@@ -81,6 +108,13 @@ export const TraderTable = ({ traderStats, onExportTraderData }: TraderTableProp
                   </td>
                 </tr>
               ))}
+              {traderStats.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="p-4 text-center text-muted-foreground">
+                    No trader data available
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

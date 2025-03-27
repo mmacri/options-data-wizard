@@ -56,7 +56,7 @@ export const TabContent = ({
             </CardHeader>
             <CardContent>
               <DataTable 
-                data={summaryData}
+                data={summaryData.length > 0 ? summaryData : trades}
                 onView={onViewTrade}
                 onEdit={onEditTrade}
                 onDelete={onDeleteTrade}
@@ -66,6 +66,11 @@ export const TabContent = ({
         );
       
       case "positions":
+        // Filter for only open positions if openPositions is empty
+        const positionsData = openPositions.length > 0 ? 
+          openPositions : 
+          trades.filter(trade => trade.status === "Open");
+          
         return (
           <Card glass>
             <CardHeader>
@@ -73,7 +78,7 @@ export const TabContent = ({
             </CardHeader>
             <CardContent>
               <DataTable 
-                data={openPositions}
+                data={positionsData}
                 onView={onViewTrade}
                 onEdit={onEditTrade}
                 onDelete={onDeleteTrade}
@@ -90,7 +95,7 @@ export const TabContent = ({
             </CardHeader>
             <CardContent>
               <DataTable 
-                data={performanceMetrics}
+                data={performanceMetrics.length > 0 ? performanceMetrics : trades}
                 onView={onViewTrade}
                 onEdit={onEditTrade}
                 onDelete={onDeleteTrade}
