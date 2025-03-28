@@ -38,16 +38,6 @@ interface SettingsTabsProps {
   onIncludeFeesChange: (includeFees: boolean) => void;
   onDefaultFeeAmountChange: (defaultFeeAmount: number) => void;
   onUsePercentageInsteadChange: (usePercentageInstead: boolean) => void;
-  
-  // Export props
-  defaultExportFormat?: ExportFormat;
-  includeMetadata?: boolean;
-  includeCharts?: boolean;
-  includeSummary?: boolean;
-  onDefaultExportFormatChange?: (format: ExportFormat) => void;
-  onIncludeMetadataChange?: (include: boolean) => void;
-  onIncludeChartsChange?: (include: boolean) => void;
-  onIncludeSummaryChange?: (include: boolean) => void;
 }
 
 export function SettingsTabs({
@@ -78,16 +68,6 @@ export function SettingsTabs({
   onIncludeFeesChange,
   onDefaultFeeAmountChange,
   onUsePercentageInsteadChange,
-  
-  // Export props
-  defaultExportFormat = "csv",
-  includeMetadata = true,
-  includeCharts = false,
-  includeSummary = true,
-  onDefaultExportFormatChange = () => {},
-  onIncludeMetadataChange = () => {},
-  onIncludeChartsChange = () => {},
-  onIncludeSummaryChange = () => {},
 }: SettingsTabsProps) {
   return (
     <Tabs defaultValue="appearance" className="space-y-4">
