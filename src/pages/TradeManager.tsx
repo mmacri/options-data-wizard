@@ -304,7 +304,8 @@ export default function TradeManager() {
           onAddTrade={handleAddNewTrade}
           onImportOpen={() => setIsImportModalOpen(true)}
           onImportForTrader={(trader) => {
-            setSelectedTraderImport(trader);
+            // Use setTraderFilter instead of non-existent setSelectedTraderImport
+            setTraderFilter(trader);
             setIsImportModalOpen(true);
           }}
           onExportAll={() => handleExportCSV()}

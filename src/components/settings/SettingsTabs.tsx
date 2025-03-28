@@ -139,16 +139,7 @@ export function SettingsTabs({
       </TabsContent>
       
       <TabsContent value="export" className="space-y-4">
-        <ExportSettings 
-          defaultExportFormat={defaultExportFormat}
-          includeMetadata={includeMetadata}
-          includeCharts={includeCharts}
-          includeSummary={includeSummary}
-          onDefaultExportFormatChange={onDefaultExportFormatChange}
-          onIncludeMetadataChange={onIncludeMetadataChange}
-          onIncludeChartsChange={onIncludeChartsChange}
-          onIncludeSummaryChange={onIncludeSummaryChange}
-        />
+        <ExportSettings />
         <BackupRestoreSettings />
       </TabsContent>
       

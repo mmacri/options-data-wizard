@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui-components/Card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -83,7 +82,6 @@ export function ExportSettings() {
 
   const handleCreateBackup = async () => {
     try {
-      // Get all data from localStorage to create a complete backup
       const backup = {
         trades: trades,
         userSettings: settings,
@@ -94,7 +92,6 @@ export function ExportSettings() {
         timestamp: new Date().toISOString()
       };
       
-      // Create and download backup file
       const backupBlob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(backupBlob);
       const link = document.createElement('a');
