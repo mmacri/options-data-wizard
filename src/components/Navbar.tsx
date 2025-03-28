@@ -1,115 +1,51 @@
 
 import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { 
-  BarChart3, 
-  Home,
-  Settings,
-  FileText,
-  Menu,
-  X
-} from "lucide-react";
-import { useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
+import { Home, BarChart2, LayoutGrid, FileText, Settings, Info } from "lucide-react";
 
-type NavItem = {
-  title: string;
-  href: string;
-  icon: React.ElementType;
-};
-
-const navItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Trade Manager",
-    href: "/trade-manager",
-    icon: FileText,
-  },
-  {
-    title: "Reporting",
-    href: "/reporting",
-    icon: BarChart3,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-];
-
-export default function Navbar() {
+const Navbar = () => {
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const currentPath = location.pathname;
 
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
+  const navItems = [
+    { path: "/", name: "Home", icon: <Home className="h-5 w-5" /> },
+    { path: "/dashboard", name: "Dashboard", icon: <LayoutGrid className="h-5 w-5" /> },
+    { path: "/trade-manager", name: "Trade Manager", icon: <BarChart2 className="h-5 w-5" /> },
+    { path: "/reporting", name: "Reporting", icon: <FileText className="h-5 w-5" /> },
+    { path: "/information", name: "Information", icon: <Info className="h-5 w-5" /> },
+    { path: "/settings", name: "Settings", icon: <Settings className="h-5 w-5" /> },
+  ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-card/80 backdrop-blur-lg transition-all">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center space-x-2">
-          <Link to="/dashboard" className="flex items-center space-x-2">
-            <span className="text-lg font-medium">Options Data Wizard</span>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center">
+        <div className="mr-4 md:flex">
+          <Link to="/" className="mr-6 flex items-center space-x-2">
+            <span className="hidden font-bold sm:inline-block">
+              Trade Tracker Pro
+            </span>
           </Link>
-        </div>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "nav-link flex items-center space-x-2",
-                location.pathname === item.href && "active-nav-link"
-              )}
-            >
-              <item.icon className="w-4 h-4" />
-              <span>{item.title}</span>
-            </Link>
-          ))}
-        </nav>
-
-        <div className="flex items-center space-x-2">
-          <ThemeToggle />
-          
-          {/* Mobile Menu Button */}
-          <button 
-            className="md:hidden btn-icon"
-            onClick={toggleMobileMenu}
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Navigation */}
-      {mobileMenuOpen && (
-        <div className="md:hidden animate-fade-in">
-          <nav className="flex flex-col space-y-1 p-4 bg-card">
+          <nav className="flex items-center gap-6 text-sm">
             {navItems.map((item) => (
               <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "nav-link flex items-center space-x-2 p-3",
-                  location.pathname === item.href && "active-nav-link"
-                )}
-                onClick={() => setMobileMenuOpen(false)}
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-1 transition-colors hover:text-foreground/80 ${
+                  currentPath === item.path ? "text-foreground font-medium" : "text-foreground/60"
+                }`}
               >
-                <item.icon className="w-4 h-4" />
-                <span>{item.title}</span>
+                {item.icon}
+                <span className="hidden md:block">{item.name}</span>
               </Link>
             ))}
           </nav>
         </div>
-      )}
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
+        </div>
+      </div>
     </header>
   );
-}
+};
+
+export default Navbar;

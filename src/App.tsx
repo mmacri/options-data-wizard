@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import TradeManager from "./pages/TradeManager";
 import Reporting from "./pages/Reporting";
 import Settings from "./pages/Settings";
+import Information from "./pages/Information";
 import Navbar from "./components/Navbar";
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "./hooks/useThemeMode";
@@ -51,6 +52,7 @@ const App = () => {
                     <Route path="/trade-manager" element={<TradeManager />} />
                     <Route path="/reporting" element={<Reporting />} />
                     <Route path="/settings" element={<Settings />} />
+                    <Route path="/information" element={<Information />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>

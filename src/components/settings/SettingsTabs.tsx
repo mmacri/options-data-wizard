@@ -6,7 +6,9 @@ import { CalculationSettings } from "./CalculationSettings";
 import { ExportSettings } from "./ExportSettings";
 import { WidgetSettings } from "./WidgetSettings";
 import { BackupRestoreSettings } from "./BackupRestoreSettings";
-import { ThemeOption, OptionType, RoiMethod } from "@/types/settings";
+import { TraderManagement } from "./TraderManagement";
+import { DataManagement } from "./DataManagement";
+import { ThemeOption, OptionType, RoiMethod, ExportFormat } from "@/types/settings";
 
 interface SettingsTabsProps {
   // Appearance props
@@ -14,28 +16,38 @@ interface SettingsTabsProps {
   compactMode: boolean;
   showWelcomeScreen: boolean;
   onThemeChange: (theme: ThemeOption) => void;
-  onCompactModeChange: (checked: boolean) => void;
-  onShowWelcomeScreenChange: (checked: boolean) => void;
+  onCompactModeChange: (compactMode: boolean) => void;
+  onShowWelcomeScreenChange: (showWelcomeScreen: boolean) => void;
   
   // Trading props
   defaultTrader: string;
   defaultSymbol: string;
   defaultQuantity: number;
   defaultOptionType: OptionType;
-  onDefaultTraderChange: (value: string) => void;
-  onDefaultSymbolChange: (value: string) => void;
-  onDefaultQuantityChange: (value: number) => void;
-  onDefaultOptionTypeChange: (value: OptionType) => void;
+  onDefaultTraderChange: (defaultTrader: string) => void;
+  onDefaultSymbolChange: (defaultSymbol: string) => void;
+  onDefaultQuantityChange: (defaultQuantity: number) => void;
+  onDefaultOptionTypeChange: (defaultOptionType: OptionType) => void;
   
   // Calculation props
   roiMethod: RoiMethod;
   includeFees: boolean;
   defaultFeeAmount: number;
   usePercentageInstead: boolean;
-  onRoiMethodChange: (value: RoiMethod) => void;
-  onIncludeFeesChange: (checked: boolean) => void;
-  onDefaultFeeAmountChange: (value: number) => void;
-  onUsePercentageInsteadChange: (checked: boolean) => void;
+  onRoiMethodChange: (roiMethod: RoiMethod) => void;
+  onIncludeFeesChange: (includeFees: boolean) => void;
+  onDefaultFeeAmountChange: (defaultFeeAmount: number) => void;
+  onUsePercentageInsteadChange: (usePercentageInstead: boolean) => void;
+  
+  // Export props
+  defaultExportFormat?: ExportFormat;
+  includeMetadata?: boolean;
+  includeCharts?: boolean;
+  includeSummary?: boolean;
+  onDefaultExportFormatChange?: (format: ExportFormat) => void;
+  onIncludeMetadataChange?: (include: boolean) => void;
+  onIncludeChartsChange?: (include: boolean) => void;
+  onIncludeSummaryChange?: (include: boolean) => void;
 }
 
 export function SettingsTabs({
@@ -66,19 +78,29 @@ export function SettingsTabs({
   onIncludeFeesChange,
   onDefaultFeeAmountChange,
   onUsePercentageInsteadChange,
+  
+  // Export props
+  defaultExportFormat = "csv",
+  includeMetadata = true,
+  includeCharts = false,
+  includeSummary = true,
+  onDefaultExportFormatChange = () => {},
+  onIncludeMetadataChange = () => {},
+  onIncludeChartsChange = () => {},
+  onIncludeSummaryChange = () => {},
 }: SettingsTabsProps) {
   return (
-    <Tabs defaultValue="appearance" className="w-full">
-      <TabsList className="grid grid-cols-6 mb-8">
+    <Tabs defaultValue="appearance" className="space-y-4">
+      <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-1">
         <TabsTrigger value="appearance">Appearance</TabsTrigger>
         <TabsTrigger value="trading">Trading</TabsTrigger>
         <TabsTrigger value="calculation">Calculation</TabsTrigger>
         <TabsTrigger value="export">Export</TabsTrigger>
-        <TabsTrigger value="widgets">Widgets</TabsTrigger>
-        <TabsTrigger value="backup">Backup</TabsTrigger>
+        <TabsTrigger value="traders">Traders</TabsTrigger>
+        <TabsTrigger value="data">Data</TabsTrigger>
       </TabsList>
       
-      <TabsContent value="appearance" className="space-y-6">
+      <TabsContent value="appearance" className="space-y-4">
         <AppearanceSettings 
           theme={theme}
           compactMode={compactMode}
@@ -87,9 +109,10 @@ export function SettingsTabs({
           onCompactModeChange={onCompactModeChange}
           onShowWelcomeScreenChange={onShowWelcomeScreenChange}
         />
+        <WidgetSettings />
       </TabsContent>
       
-      <TabsContent value="trading" className="space-y-6">
+      <TabsContent value="trading" className="space-y-4">
         <TradingSettings 
           defaultTrader={defaultTrader}
           defaultSymbol={defaultSymbol}
@@ -102,7 +125,7 @@ export function SettingsTabs({
         />
       </TabsContent>
       
-      <TabsContent value="calculation" className="space-y-6">
+      <TabsContent value="calculation" className="space-y-4">
         <CalculationSettings 
           roiMethod={roiMethod}
           includeFees={includeFees}
@@ -115,16 +138,26 @@ export function SettingsTabs({
         />
       </TabsContent>
       
-      <TabsContent value="export" className="space-y-6">
-        <ExportSettings />
-      </TabsContent>
-      
-      <TabsContent value="widgets" className="space-y-6">
-        <WidgetSettings />
-      </TabsContent>
-      
-      <TabsContent value="backup" className="space-y-6">
+      <TabsContent value="export" className="space-y-4">
+        <ExportSettings 
+          defaultExportFormat={defaultExportFormat}
+          includeMetadata={includeMetadata}
+          includeCharts={includeCharts}
+          includeSummary={includeSummary}
+          onDefaultExportFormatChange={onDefaultExportFormatChange}
+          onIncludeMetadataChange={onIncludeMetadataChange}
+          onIncludeChartsChange={onIncludeChartsChange}
+          onIncludeSummaryChange={onIncludeSummaryChange}
+        />
         <BackupRestoreSettings />
+      </TabsContent>
+      
+      <TabsContent value="traders" className="space-y-4">
+        <TraderManagement />
+      </TabsContent>
+      
+      <TabsContent value="data" className="space-y-4">
+        <DataManagement />
       </TabsContent>
     </Tabs>
   );

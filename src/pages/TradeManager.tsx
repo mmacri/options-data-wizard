@@ -1,13 +1,14 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/useLocalStorage";
-import { importTradesCSV, exportTradesCSV } from "@/utils/csvUtils";
+import { exportTradesCSV } from "@/utils/csvUtils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trade, calculateROI } from "@/components/ui-components/DataTableTypes";
 import { TradeModal } from "@/components/ui-components/TradeModal";
 import { StatsCards } from "@/components/trade-manager/StatsCards";
 import { ActionButtons } from "@/components/trade-manager/ActionButtons";
-import { ImportModal } from "@/components/trade-manager/ImportModal";
+import { EnhancedImportModal } from "@/components/trade-manager/EnhancedImportModal";
 import { TabContent } from "@/components/trade-manager/TabContent";
 import { DateFilter } from "@/components/ui-components/DateFilter";
 import { TraderFilter } from "@/components/ui-components/TraderFilter";
@@ -34,8 +35,6 @@ export default function TradeManager() {
   
   // Import modal state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [csvImportText, setCsvImportText] = useState("");
-  const [selectedTraderImport, setSelectedTraderImport] = useState<string | null>(null);
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [traderFilter, setTraderFilter] = useState<string>("all");
@@ -290,41 +289,9 @@ export default function TradeManager() {
     }
   };
   
-  const handleImportCSV = () => {
-    try {
-      if (!csvImportText.trim()) {
-        toast({
-          title: "Import failed",
-          description: "No CSV data provided.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      const importedTrades = importTradesCSV(csvImportText, selectedTraderImport || undefined);
-      setTrades([...trades, ...importedTrades]);
-      
-      toast({
-        title: "Import successful",
-        description: `${importedTrades.length} trades have been imported.`
-      });
-      
-      setIsImportModalOpen(false);
-      setCsvImportText("");
-      setSelectedTraderImport(null);
-    } catch (err) {
-      console.error('Import error:', err);
-      toast({
-        title: "Import failed",
-        description: "There was an error importing your data. Please check the CSV format.",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  const handleImportForTrader = (trader: string) => {
-    setSelectedTraderImport(trader);
-    setIsImportModalOpen(true);
+  const handleImportComplete = (newTrades: Trade[]) => {
+    setTrades([...trades, ...newTrades]);
+    setIsImportModalOpen(false);
   };
   
   return (
@@ -336,7 +303,10 @@ export default function TradeManager() {
           uniqueTraders={uniqueTraders}
           onAddTrade={handleAddNewTrade}
           onImportOpen={() => setIsImportModalOpen(true)}
-          onImportForTrader={handleImportForTrader}
+          onImportForTrader={(trader) => {
+            setSelectedTraderImport(trader);
+            setIsImportModalOpen(true);
+          }}
           onExportAll={() => handleExportCSV()}
           onExportForTrader={(trader) => handleExportCSV(trader)}
         />
@@ -419,18 +389,12 @@ export default function TradeManager() {
         isEditMode={isEditMode}
       />
       
-      <ImportModal 
+      <EnhancedImportModal 
         isOpen={isImportModalOpen}
-        csvImportText={csvImportText}
-        selectedTraderImport={selectedTraderImport}
-        onCsvTextChange={setCsvImportText}
-        onClearTrader={() => setSelectedTraderImport(null)}
-        onCancel={() => {
-          setIsImportModalOpen(false);
-          setCsvImportText("");
-          setSelectedTraderImport(null);
-        }}
-        onImport={handleImportCSV}
+        uniqueTraders={uniqueTraders}
+        existingTrades={trades}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={handleImportComplete}
       />
     </div>
   );
